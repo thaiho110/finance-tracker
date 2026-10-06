@@ -6,7 +6,7 @@ backend/out/
 *.class
 *.jar
 *.war
-!gradle/wrapper/gradle-wrapper.jar
+!backend/gradle/wrapper/gradle-wrapper.jar
 
 # IDE
 .idea/
