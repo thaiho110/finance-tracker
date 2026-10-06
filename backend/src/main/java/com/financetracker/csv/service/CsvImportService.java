@@ -95,9 +95,13 @@ public class CsvImportService {
     }
 
     private String getField(CSVRecord record, Map<String, Integer> headerIndex, String canonicalName, String defaultValue) {
+        // Build a case-insensitive header map
+        Map<String, Integer> ciHeaders = new HashMap<>();
+        headerIndex.forEach((key, value) -> ciHeaders.put(key.toLowerCase(), value));
+
         for (Map.Entry<String, String> entry : HEADER_MAPPING.entrySet()) {
             if (entry.getValue().equals(canonicalName)) {
-                Integer idx = headerIndex.get(entry.getKey());
+                Integer idx = ciHeaders.get(entry.getKey());
                 if (idx != null) {
                     String value = record.get(idx);
                     if (value != null && !value.isBlank()) return value.trim();

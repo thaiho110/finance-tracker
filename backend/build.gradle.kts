@@ -66,4 +66,9 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    maxParallelForks = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+    testLogging {
+        events("passed", "skipped", "failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }

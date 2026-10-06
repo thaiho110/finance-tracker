@@ -80,10 +80,14 @@ public class OcrService {
             int width = original.getWidth();
             int height = original.getHeight();
 
+            if (width <= 0 || height <= 0) {
+                throw new IllegalArgumentException("Image has invalid dimensions: " + width + "x" + height);
+            }
+
             // Resize if wider than max
             if (width > imageMaxWidth) {
                 double ratio = (double) imageMaxWidth / width;
-                int newHeight = (int) (height * ratio);
+                int newHeight = Math.max(1, (int) (height * ratio));
                 BufferedImage resized = new BufferedImage(imageMaxWidth, newHeight, BufferedImage.TYPE_INT_RGB);
                 Graphics2D g = resized.createGraphics();
                 g.drawImage(original, 0, 0, imageMaxWidth, newHeight, null);
