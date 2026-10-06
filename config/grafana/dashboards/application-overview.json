@@ -1,0 +1,52 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "Finance Tracker - Application Overview",
+  "uid": "finance-tracker-overview",
+  "version": 1,
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "Request Rate (RPS)",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "targets": [{"expr": "rate(http_server_requests_seconds_count[1m])", "legendFormat": "RPS"}]
+    },
+    {
+      "title": "Request Latency (p95)",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "targets": [{"expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m]))", "legendFormat": "p95"}]
+    },
+    {
+      "title": "Error Rate",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "targets": [{"expr": "rate(http_server_requests_seconds_count{status=~\"5..\"}[1m])", "legendFormat": "5xx"}]
+    },
+    {
+      "title": "JVM Heap Memory",
+      "type": "graph",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+      "targets": [{"expr": "jvm_memory_used_bytes{area=\"heap\"}", "legendFormat": "Heap Used"}]
+    },
+    {
+      "title": "CSV Rows Parsed",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 8},
+      "targets": [{"expr": "finance_csv_rows_parsed_total", "legendFormat": "Total"}]
+    },
+    {
+      "title": "OCR Success Rate",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 8},
+      "targets": [{"expr": "rate(finance_ocr_success_total[1h]) / rate(finance_ocr_requests_total[1h]) * 100", "legendFormat": "Success %"}]
+    },
+    {
+      "title": "Duplicates Detected",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 8},
+      "targets": [{"expr": "finance_duplicates_found_total", "legendFormat": "Total"}]
+    }
+  ]
+}

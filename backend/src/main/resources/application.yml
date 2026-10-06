@@ -1,0 +1,107 @@
+spring:
+  application:
+    name: finance-tracker-backend
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/finance_tracker}
+    username: ${DATABASE_USER:ft_user}
+    password: ${DATABASE_PASSWORD:ft_password}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        format_sql: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    placeholder-replacement: false
+
+server:
+  port: 8080
+  shutdown: graceful
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# ── Actuator / Metrics ──
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+    enabled: true
+
+# ── Logging ──
+logging:
+  level:
+    com.financetracker: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+
+# ── Application-specific ──
+app:
+  metrics:
+    enabled: true
+  jwt:
+    secret: ${JWT_SECRET:finance-tracker-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+    expiration: 86400000
+    refresh-expiration: 604800000
+  ocr:
+    image-max-width: 1024
+    image-retention: NONE
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/finance_tracker
+    username: ft_user
+    password: ft_password
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+  flyway:
+    enabled: true
+
+logging:
+  level:
+    com.financetracker: DEBUG
+    org.hibernate.SQL: DEBUG
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  datasource:
+    url: jdbc:postgresql://postgres:5432/finance_tracker
+    username: ft_user
+    password: ft_password

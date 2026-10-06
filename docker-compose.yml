@@ -1,0 +1,125 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: finance_tracker
+      POSTGRES_USER: ft_user
+      POSTGRES_PASSWORD: ft_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ft_user -d finance_tracker"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    profiles:
+      - all
+      - app
+
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      JWT_SECRET: ${JWT_SECRET:-finance-tracker-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
+      OTEL_SERVICE_NAME: finance-tracker-backend
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - all
+      - app
+
+  # ── Observability Stack ──
+  alloy:
+    image: grafana/alloy:latest
+    ports:
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    volumes:
+      - ./config/alloy:/etc/alloy
+    command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+    profiles:
+      - all
+      - observability
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus:/etc/prometheus
+      - promdata:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    profiles:
+      - all
+      - observability
+
+  tempo:
+    image: grafana/tempo:latest
+    ports:
+      - "3200:3200"
+    volumes:
+      - ./config/tempo:/etc/tempo
+      - tempodata:/tmp/tempo
+    command:
+      - -config.file=/etc/tempo/tempo.yml
+    profiles:
+      - all
+      - observability
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./config/loki:/etc/loki
+      - lokidata:/loki
+    command:
+      - -config.file=/etc/loki/loki-config.yml
+    profiles:
+      - all
+      - observability
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+    volumes:
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+    profiles:
+      - all
+      - observability
+
+volumes:
+  pgdata:
+  promdata:
+  tempodata:
+  lokidata:
+  grafanadata:

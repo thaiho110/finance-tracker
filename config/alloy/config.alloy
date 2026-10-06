@@ -1,0 +1,58 @@
+// Receive OTLP data from Spring Boot
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+}
+
+// Batch before exporting
+otelcol.processor.batch "default" {
+  timeout = "1s"
+  send_batch_size = 1024
+}
+
+// Export to Prometheus (metrics)
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+// Export to Tempo (traces)
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// Export to Loki (logs)
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// Pipeline — connects receiver → processor → exporters
+otelcol.pipeline "default" {
+  receiver  = otelcol.receiver.otlp.default
+  processor = [otelcol.processor.batch.default]
+  exporter  = [
+    otelcol.exporter.prometheus.default,
+    otelcol.exporter.otlp.tempo,
+    otelcol.exporter.loki.default,
+  ]
+}
