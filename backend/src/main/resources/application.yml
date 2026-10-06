@@ -65,6 +65,29 @@ logging:
 app:
   metrics:
     enabled: true
+  rate-limiting:
+    type: in-memory
+    defaults:
+      capacity: 100
+      refill-tokens: 100
+      refill-period: PT1M
+    clients:
+      finance-tracker-web:
+        capacity: 100
+        refill-tokens: 100
+        refill-period: PT1M
+      finance-tracker-mobile:
+        capacity: 60
+        refill-tokens: 60
+        refill-period: PT1M
+      finance-tracker-desktop:
+        capacity: 100
+        refill-tokens: 100
+        refill-period: PT1M
+      finance-tracker-device:
+        capacity: 30
+        refill-tokens: 30
+        refill-period: PT1M
   jwt:
     secret: ${JWT_SECRET:finance-tracker-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
     expiration: 86400000

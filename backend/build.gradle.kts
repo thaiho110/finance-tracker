@@ -3,6 +3,10 @@ plugins {
     id("org.springframework.boot") version "4.1.0"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.flywaydb.flyway") version "10.20.0"
+    id("checkstyle")
+    id("pmd")
+    id("com.github.spotbugs") version "6.1.7"
+    jacoco
 }
 
 group = "com.financetracker"
@@ -52,6 +56,10 @@ dependencies {
     // Actuator Micrometer + Prometheus
     implementation("io.micrometer:micrometer-registry-prometheus")
 
+    // Rate Limiting — Token Bucket (Bucket4j)
+    implementation("com.bucket4j:bucket4j-core:8.10.1")
+    implementation("com.github.ben-manes.caffeine:caffeine")
+
     // Lombok
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
@@ -71,4 +79,50 @@ tasks.withType<Test> {
         events("passed", "skipped", "failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+// ── JaCoCo ──
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+tasks.jacocoTestCoverageVerification {
+    dependsOn(tasks.jacocoTestReport)
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.0".toBigDecimal() // Informational only; toggle via CI
+            }
+        }
+    }
+}
+
+// ── Checkstyle ──
+checkstyle {
+    configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+    toolVersion = "10.21.4"
+    maxErrors = 0
+    maxWarnings = 0
+}
+
+// ── PMD ──
+pmd {
+    ruleSetFiles = files("${rootDir}/config/pmd/pmd-ruleset.xml")
+    toolVersion = "7.11.0"
+    rulesMinimumPriority = 5
+}
+
+// ── SpotBugs ──
+spotbugs {
+    toolVersion = "4.9.3"
+    excludeFilter = file("${rootDir}/config/spotbugs/spotbugs-exclude.xml")
 }

@@ -17,7 +17,7 @@ public class WebConfig implements WebMvcConfigurer {
                 "file://")
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
             .allowedHeaders("*")
-            .exposedHeaders("X-RateLimit-Remaining", "Sunset", "X-Request-Id")
+            .exposedHeaders("X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After", "Sunset")
             .allowCredentials(true);
     }
 }

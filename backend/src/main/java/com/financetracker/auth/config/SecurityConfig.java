@@ -2,6 +2,7 @@ package com.financetracker.auth.config;
 
 import com.financetracker.auth.filter.ApiKeyAuthFilter;
 import com.financetracker.auth.filter.JwtAuthenticationFilter;
+import com.financetracker.common.filter.RateLimitingFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +26,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final ApiKeyAuthFilter apiKeyAuthFilter;
+    private final RateLimitingFilter rateLimitingFilter;
     private final com.financetracker.auth.config.UserDetailsConfig userDetailsService;
 
     @Bean
@@ -53,6 +55,7 @@ public class SecurityConfig {
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class)
             .build();
     }
 

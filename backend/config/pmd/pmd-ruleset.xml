@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<ruleset name="Finance Tracker PMD Rules"
+    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>PMD rules for Finance Tracker</description>
+
+    <!-- Best Practices -->
+    <rule ref="category/java/bestpractices.xml/AvoidUsingHardCodedIP"/>
+    <rule ref="category/java/bestpractices.xml/CheckResultSet"/>
+    <rule ref="category/java/bestpractices.xml/ConstantsInInterface"/>
+    <rule ref="category/java/bestpractices.xml/DefaultLabelNotLastInSwitch"/>
+    <rule ref="category/java/bestpractices.xml/ForLoopCanBeForeach"/>
+    <rule ref="category/java/bestpractices.xml/LooseCoupling"/>
+    <rule ref="category/java/bestpractices.xml/MethodReturnsInternalArray"/>
+    <rule ref="category/java/bestpractices.xml/MissingOverride"/>
+    <rule ref="category/java/bestpractices.xml/OneDeclarationPerLine"/>
+    <rule ref="category/java/bestpractices.xml/PreserveStackTrace"/>
+    <rule ref="category/java/bestpractices.xml/SwitchStmtsShouldHaveDefault"/>
+    <rule ref="category/java/bestpractices.xml/UseCollectionIsEmpty"/>
+    <rule ref="category/java/bestpractices.xml/UseTryWithResources"/>
+
+    <!-- Code Style -->
+    <rule ref="category/java/codestyle.xml/ClassNamingConventions"/>
+    <rule ref="category/java/codestyle.xml/ControlStatementBraces"/>
+    <rule ref="category/java/codestyle.xml/FieldDeclarationsShouldBeAtStartOfClass"/>
+    <rule ref="category/java/codestyle.xml/ForLoopShouldBeWhileLoop"/>
+    <rule ref="category/java/codestyle.xml/LongVariable"/>
+    <rule ref="category/java/codestyle.xml/OnlyOneReturn"/>
+    <rule ref="category/java/codestyle.xml/ShortClassName"/>
+    <rule ref="category/java/codestyle.xml/ShortMethodName"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryAnnotationValueElement"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryCast"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryConstructor"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryFullyQualifiedName"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryModifier"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryReturn"/>
+    <rule ref="category/java/codestyle.xml/UseDiamondOperator"/>
+
+    <!-- Design -->
+    <rule ref="category/java/design.xml/AvoidDeeplyNestedIfStmts"/>
+    <rule ref="category/java/design.xml/CollapsibleIfStatements"/>
+    <rule ref="category/java/design.xml/CyclomaticComplexity">
+        <properties>
+            <property name="classReportLevel" value="80"/>
+            <property name="methodReportLevel" value="15"/>
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml/ExcessiveMethodLength"/>
+    <rule ref="category/java/design.xml/ExcessiveParameterList"/>
+    <rule ref="category/java/design.xml/SimplifiedTernary"/>
+    <rule ref="category/java/design.xml/UselessOverridingMethod"/>
+
+    <!-- Error Prone -->
+    <rule ref="category/java/errorprone.xml/AvoidBranchingStatementAsLastInLoop"/>
+    <rule ref="category/java/errorprone.xml/AvoidDecimalLiteralsInBigDecimalConstructor"/>
+    <rule ref="category/java/errorprone.xml/AvoidMultipleUnaryOperators"/>
+    <rule ref="category/java/errorprone.xml/CloseResource"/>
+    <rule ref="category/java/errorprone.xml/DoNotTerminateVM"/>
+    <rule ref="category/java/errorprone.xml/EmptyCatchBlock"/>
+    <rule ref="category/java/errorprone.xml/EmptyFinallyBlock"/>
+    <rule ref="category/java/errorprone.xml/EmptyIfStmt"/>
+    <rule ref="category/java/errorprone.xml/EmptyInitializer"/>
+    <rule ref="category/java/errorprone.xml/EmptyStatementBlock"/>
+    <rule ref="category/java/errorprone.xml/EmptySwitchStatements"/>
+    <rule ref="category/java/errorprone.xml/EmptyTryBlock"/>
+    <rule ref="category/java/errorprone.xml/EmptyWhileStmt"/>
+    <rule ref="category/java/errorprone.xml/EqualsNull"/>
+    <rule ref="category/java/errorprone.xml/JUnitStaticSuite"/>
+    <rule ref="category/java/errorprone.xml/MissingSerialVersionUID"/>
+    <rule ref="category/java/errorprone.xml/ReturnEmptyCollectionRatherThanNull"/>
+    <rule ref="category/java/errorprone.xml/StringBufferInstantiationWithChar"/>
+    <rule ref="category/java/errorprone.xml/UseCorrectExceptionLogging"/>
+    <rule ref="category/java/errorprone.xml/UseProperClassLoader"/>
+</ruleset>
