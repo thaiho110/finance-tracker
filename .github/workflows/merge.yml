@@ -7,19 +7,22 @@ on:
 jobs:
   test:
     name: Test & Coverage
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: 21
           distribution: temurin
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x backend/gradlew
 
       - name: Run tests with coverage
         run: cd backend && ./gradlew test jacocoTestReport --no-daemon
@@ -33,14 +36,14 @@ jobs:
           ENFORCE_COVERAGE: ${{ github.event.inputs.enforce-coverage || 'false' }}
 
       - name: Upload JaCoCo coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-report-main
           path: backend/build/reports/jacoco/
           retention-days: 30
 
       - name: Upload test report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-results-main
           path: backend/build/reports/tests/
