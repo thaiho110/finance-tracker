@@ -29,3 +29,17 @@ Thumbs.db
 *.key
 *.p12
 *.jks
+
+# Node.js / pnpm
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+.turbo/
+packages/*/dist/
+packages/*/.turbo/
+
+# Environment
+.env.local
+.env.development.local
