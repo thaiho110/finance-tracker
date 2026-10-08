@@ -8,18 +8,17 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * Base class for integration tests that require a real PostgreSQL database.
- * Uses Testcontainers to spin up a Postgres 16 container.
+ * Uses Testcontainers to spin up a Postgres 17 container.
  * Flyway migrations are applied automatically by Spring Boot.
  */
 @Testcontainers
 public abstract class AbstractIntegrationTest {
 
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine")
         .withDatabaseName("testdb")
         .withUsername("test")
-        .withPassword("test")
-        .withReuse(true);
+        .withPassword("test");
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {

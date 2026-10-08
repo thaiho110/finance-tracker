@@ -3,7 +3,6 @@ package com.financetracker.transaction.service;
 import com.financetracker.common.exception.EntityNotFoundException;
 import com.financetracker.transaction.dto.TransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
-import com.financetracker.transaction.model.ReceiptItem;
 import com.financetracker.transaction.model.SourceType;
 import com.financetracker.transaction.model.Transaction;
 import com.financetracker.transaction.repository.ReceiptItemRepository;
@@ -15,7 +14,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.financetracker.transaction.dto.TransactionSummaryResponse;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -108,6 +110,56 @@ public class TransactionService {
 
     public List<String> getCategories(UUID userId) {
         return transactionRepository.findDistinctCategoriesByCreatedBy(userId);
+    }
+
+    public TransactionSummaryResponse getSummary(UUID userId) {
+        // Category breakdown
+        List<Object[]> categoryRows = transactionRepository.categoryBreakdownNative(userId);
+        List<TransactionSummaryResponse.CategoryBreakdown> categoryBreakdown = new ArrayList<>();
+        BigDecimal totalExpenses = BigDecimal.ZERO;
+        BigDecimal totalIncome = BigDecimal.ZERO;
+
+        for (Object[] row : categoryRows) {
+            String category = (String) row[0];
+            BigDecimal total = (BigDecimal) row[1];
+            categoryBreakdown.add(new TransactionSummaryResponse.CategoryBreakdown(category, total));
+            if (total.compareTo(BigDecimal.ZERO) < 0) {
+                totalExpenses = totalExpenses.add(total);
+            } else {
+                totalIncome = totalIncome.add(total);
+            }
+        }
+
+        // Monthly trend
+        List<Object[]> monthlyRows = transactionRepository.monthlyTrendNative(userId);
+        List<TransactionSummaryResponse.MonthlyTrend> monthlyTrend = new ArrayList<>();
+        for (Object[] row : monthlyRows) {
+            String month = (String) row[0];
+            BigDecimal total = (BigDecimal) row[1];
+            monthlyTrend.add(new TransactionSummaryResponse.MonthlyTrend(month, total));
+        }
+
+        // Recent transactions
+        List<Transaction> recent = transactionRepository.findRecentByCreatedBy(userId,
+            org.springframework.data.domain.PageRequest.of(0, 5));
+        List<TransactionResponse> recentTransactions = recent.stream().map(this::toResponse).toList();
+
+        // Count and average
+        long count = transactionRepository.countByCreatedBy(userId);
+        BigDecimal totalAll = totalExpenses.add(totalIncome);
+        BigDecimal average = count > 0
+            ? totalAll.divide(BigDecimal.valueOf(count), 2, java.math.RoundingMode.HALF_UP)
+            : BigDecimal.ZERO;
+
+        return new TransactionSummaryResponse(
+            totalExpenses.abs(),
+            totalIncome,
+            count,
+            average,
+            categoryBreakdown,
+            monthlyTrend,
+            recentTransactions
+        );
     }
 
     private TransactionResponse toResponse(Transaction t) {

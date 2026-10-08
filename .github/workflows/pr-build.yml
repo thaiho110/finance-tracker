@@ -24,6 +24,12 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x backend/gradlew
 
+      - name: Verify Docker is available (required for Testcontainers)
+        run: docker version
+
+      - name: Pre-pull PostgreSQL image (speeds up Testcontainers)
+        run: docker pull postgres:17-alpine
+
       - name: Build and run tests
         run: cd backend && ./gradlew check --no-daemon
 

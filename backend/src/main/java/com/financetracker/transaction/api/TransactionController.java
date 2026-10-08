@@ -1,8 +1,8 @@
 package com.financetracker.transaction.api;
 
-import com.financetracker.common.dto.ParsedTransactionResponse;
 import com.financetracker.transaction.dto.TransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
+import com.financetracker.transaction.dto.TransactionSummaryResponse;
 import com.financetracker.transaction.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -52,6 +52,14 @@ public class TransactionController {
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes());
         return ResponseEntity.ok(transactionService.findAll(userId, category, dateFrom, dateTo, pageable));
+    }
+
+    @GetMapping("/summary")
+    @Operation(summary = "Get dashboard summary with category breakdown, monthly trend, and recent transactions")
+    public ResponseEntity<TransactionSummaryResponse> getSummary(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes());
+        return ResponseEntity.ok(transactionService.getSummary(userId));
     }
 
     @GetMapping("/{id}")

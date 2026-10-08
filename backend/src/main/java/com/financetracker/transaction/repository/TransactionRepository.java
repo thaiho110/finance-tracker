@@ -46,4 +46,31 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     List<String> findDistinctCategoriesByCreatedBy(@Param("createdBy") UUID createdBy);
 
     boolean existsByIdAndCreatedBy(UUID id, UUID createdBy);
+
+    long countByCreatedBy(UUID createdBy);
+
+    @Query(value = """
+        SELECT t.category AS category, SUM(t.amount) AS total
+        FROM transactions t
+        WHERE t.created_by = :createdBy
+        GROUP BY t.category
+        ORDER BY ABS(SUM(t.amount)) DESC
+        """, nativeQuery = true)
+    List<Object[]> categoryBreakdownNative(@Param("createdBy") UUID createdBy);
+
+    @Query(value = """
+        SELECT TO_CHAR(t.date, 'YYYY-MM') AS month, SUM(t.amount) AS total
+        FROM transactions t
+        WHERE t.created_by = :createdBy
+        GROUP BY TO_CHAR(t.date, 'YYYY-MM')
+        ORDER BY month
+        """, nativeQuery = true)
+    List<Object[]> monthlyTrendNative(@Param("createdBy") UUID createdBy);
+
+    @Query("""
+        SELECT t FROM Transaction t
+        WHERE t.createdBy = :createdBy
+        ORDER BY t.date DESC, t.createdAt DESC
+        """)
+    List<Transaction> findRecentByCreatedBy(@Param("createdBy") UUID createdBy, Pageable pageable);
 }
