@@ -25,4 +25,4 @@ public record TransactionRequest(
 
     @Schema(description = "Source type", example = "CSV")
     @NotBlank String sourceType
-) {}
+) { }

@@ -14,5 +14,5 @@ public record ParsedReceiptResponse(
     @Schema(description = "Whether this receipt appears to be a duplicate", example = "false") boolean isDuplicate,
     @Schema(description = "Individual line items from the receipt") List<LineItem> lineItems
 ) {
-    public record LineItem(String item, BigDecimal price) {}
+    public record LineItem(String item, BigDecimal price) { }
 }

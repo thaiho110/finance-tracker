@@ -21,5 +21,5 @@ public record TransactionResponse(
     @Schema(description = "Record creation timestamp") LocalDateTime createdAt,
     @Schema(description = "Receipt line items (only for OCR-sourced transactions)") List<ReceiptItemResponse> receiptItems
 ) {
-    public record ReceiptItemResponse(UUID id, String itemDescription, BigDecimal price) {}
+    public record ReceiptItemResponse(UUID id, String itemDescription, BigDecimal price) { }
 }

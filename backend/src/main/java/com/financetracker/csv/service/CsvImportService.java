@@ -16,7 +16,11 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -104,7 +108,9 @@ public class CsvImportService {
                 Integer idx = ciHeaders.get(entry.getKey());
                 if (idx != null) {
                     String value = record.get(idx);
-                    if (value != null && !value.isBlank()) return value.trim();
+                    if (value != null && !value.isBlank()) {
+                        return value.trim();
+                    }
                 }
             }
         }
@@ -112,17 +118,23 @@ public class CsvImportService {
     }
 
     private LocalDate parseDate(String value) {
-        if (value == null || value.isBlank()) return LocalDate.now();
+        if (value == null || value.isBlank()) {
+            return LocalDate.now();
+        }
         for (DateTimeFormatter fmt : DATE_FORMATS) {
             try {
                 return LocalDate.parse(value.trim(), fmt);
-            } catch (DateTimeParseException ignored) {}
+            } catch (DateTimeParseException ignored) {
+                // continue trying next format
+            }
         }
         return LocalDate.now();
     }
 
     private BigDecimal parseAmount(String value) {
-        if (value == null || value.isBlank()) return BigDecimal.ZERO;
+        if (value == null || value.isBlank()) {
+            return BigDecimal.ZERO;
+        }
         try {
             return new BigDecimal(value.replaceAll("[^\\d.-]", ""));
         } catch (NumberFormatException e) {

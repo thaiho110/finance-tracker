@@ -45,11 +45,15 @@ public class InMemoryRateLimiter implements RateLimiter {
     @Override
     public long resetTimeSeconds(String key, String clientId) {
         Bucket bucket = bucketCache.getIfPresent(bucketKey(key, clientId));
-        if (bucket == null) return 0;
+        if (bucket == null) {
+            return 0;
+        }
         // Estimate: tokens / refill rate gives approximate seconds to full
         long tokens = bucket.getAvailableTokens();
         long capacity = capacityFor(clientId);
-        if (tokens >= capacity) return 0;
+        if (tokens >= capacity) {
+            return 0;
+        }
         RateLimitProperties.ClientLimit limit = resolveLimit(clientId);
         long nanosPerToken = limit.getRefillPeriod().toNanos() / limit.getRefillTokens();
         return System.currentTimeMillis() / 1000 + ((capacity - tokens) * nanosPerToken) / 1_000_000_000;

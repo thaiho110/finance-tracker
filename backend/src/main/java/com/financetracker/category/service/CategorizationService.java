@@ -38,7 +38,9 @@ public class CategorizationService {
      * and normalizing whitespace.
      */
     public String cleanMerchant(String raw) {
-        if (raw == null) return "";
+        if (raw == null) {
+            return "";
+        }
         return raw.toUpperCase()
             .replaceAll("#\\d+", "")
             .replaceAll("\\b\\d{10,}\\b", "")
@@ -51,7 +53,9 @@ public class CategorizationService {
      * Matches longest keywords first to avoid false positives (e.g., "MCDONALDS" before "MCDONALD'S").
      */
     public String categorize(String cleanedMerchant) {
-        if (cleanedMerchant == null || cleanedMerchant.isBlank()) return "Other";
+        if (cleanedMerchant == null || cleanedMerchant.isBlank()) {
+            return "Other";
+        }
 
         for (CachedMapping mapping : cache) {
             if (cleanedMerchant.contains(mapping.keyword())) {

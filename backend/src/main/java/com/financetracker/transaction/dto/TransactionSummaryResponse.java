@@ -17,10 +17,10 @@ public record TransactionSummaryResponse(
     public record CategoryBreakdown(
         @Schema(description = "Category name") String category,
         @Schema(description = "Total amount for this category") BigDecimal total
-    ) {}
+    ) { }
 
     public record MonthlyTrend(
         @Schema(description = "Month in YYYY-MM format", example = "2024-01") String month,
         @Schema(description = "Total amount for this month") BigDecimal total
-    ) {}
+    ) { }
 }
