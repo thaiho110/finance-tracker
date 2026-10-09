@@ -41,6 +41,24 @@ jobs:
           # Set enforce-coverage to 'true' to block merges below threshold
           ENFORCE_COVERAGE: ${{ github.event.inputs.enforce-coverage || 'false' }}
 
+      - name: Display coverage percentage
+        run: |
+          REPORT=backend/build/reports/jacoco/test/html/index.html
+          if [ -f "$REPORT" ]; then
+            echo "## JaCoCo Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            grep -oP '(instruction|line|branch|method|class)\s+\d+%\s*\(\d+/\d+\)' "$REPORT" \
+              | sed 's/^/| /' \
+              | awk 'BEGIN{print "| Type | Coverage |"; print "|------|----------|"} {print "|" $0 "|"}' \
+              >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Detailed Coverage" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -oP '(instruction|line|branch|method|class)\s+\d+%\s*\(\d+/\d+\)' "$REPORT" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ JaCoCo report not found at $REPORT"
+          fi
+
       - name: Upload JaCoCo coverage report
         uses: actions/upload-artifact@v5
         with:
