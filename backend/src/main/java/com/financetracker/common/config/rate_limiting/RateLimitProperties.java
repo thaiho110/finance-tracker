@@ -41,11 +41,11 @@ public class RateLimitProperties {
     }
 
     public ClientLimit getDefaults() {
-        return defaults;
+        return new ClientLimit(defaults.getCapacity(), defaults.getRefillTokens(), defaults.getRefillPeriod());
     }
 
     public void setDefaults(ClientLimit defaults) {
-        this.defaults = defaults;
+        this.defaults = new ClientLimit(defaults.getCapacity(), defaults.getRefillTokens(), defaults.getRefillPeriod());
     }
 
     @Getter
