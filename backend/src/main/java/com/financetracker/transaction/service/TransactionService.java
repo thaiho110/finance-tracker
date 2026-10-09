@@ -18,6 +18,7 @@ import com.financetracker.transaction.dto.TransactionSummaryResponse;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -59,7 +60,7 @@ public class TransactionService {
         if (category != null) {
             page = transactionRepository.findByCreatedByAndCategory(userId, category, pageable);
         } else {
-            page = transactionRepository.findByFilters(userId, category, from, to, pageable);
+            page = transactionRepository.findByFilters(userId, null, from, to, pageable);
         }
         return page.map(this::toResponse);
     }
@@ -156,9 +157,9 @@ public class TransactionService {
             totalIncome,
             count,
             average,
-            categoryBreakdown,
-            monthlyTrend,
-            recentTransactions
+            Collections.unmodifiableList(categoryBreakdown),
+            Collections.unmodifiableList(monthlyTrend),
+            Collections.unmodifiableList(recentTransactions)
         );
     }
 

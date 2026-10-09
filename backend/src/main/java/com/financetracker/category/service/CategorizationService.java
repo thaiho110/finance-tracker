@@ -65,5 +65,5 @@ public class CategorizationService {
         return "Other";
     }
 
-    private record CachedMapping(String keyword, String category) {}
+    private record CachedMapping(String keyword, String category) { }
 }

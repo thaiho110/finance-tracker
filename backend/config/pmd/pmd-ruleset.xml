@@ -59,8 +59,12 @@
     <rule ref="category/java/errorprone.xml/CloseResource"/>
     <rule ref="category/java/errorprone.xml/DoNotTerminateVM"/>
     <rule ref="category/java/errorprone.xml/EmptyCatchBlock"/>
-    <!-- PMD 7.x consolidated separate Empty* rules into EmptyControlStatement -->
-    <rule ref="category/java/errorprone.xml/EmptyControlStatement"/>
+    <!-- PMD 7.x individual empty control flow rules (EmptyControlStatement was removed) -->
+    <rule ref="category/java/errorprone.xml/EmptyIfStmt"/>
+    <rule ref="category/java/errorprone.xml/EmptyWhileStmt"/>
+    <rule ref="category/java/errorprone.xml/EmptyTryBlock"/>
+    <rule ref="category/java/errorprone.xml/EmptyFinallyBlock"/>
+    <rule ref="category/java/errorprone.xml/EmptySwitchStatements"/>
     <rule ref="category/java/errorprone.xml/EqualsNull"/>
     <rule ref="category/java/errorprone.xml/JUnitStaticSuite"/>
     <rule ref="category/java/errorprone.xml/MissingSerialVersionUID"/>

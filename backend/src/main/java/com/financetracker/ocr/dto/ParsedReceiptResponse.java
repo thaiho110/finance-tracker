@@ -3,6 +3,7 @@ package com.financetracker.ocr.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 
 @Schema(description = "Result of receipt OCR extraction")
@@ -14,5 +15,9 @@ public record ParsedReceiptResponse(
     @Schema(description = "Whether this receipt appears to be a duplicate", example = "false") boolean isDuplicate,
     @Schema(description = "Individual line items from the receipt") List<LineItem> lineItems
 ) {
+    public ParsedReceiptResponse {
+        lineItems = Collections.unmodifiableList(lineItems);
+    }
+
     public record LineItem(String item, BigDecimal price) { }
 }

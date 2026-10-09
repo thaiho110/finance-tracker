@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @RestController
@@ -35,7 +36,7 @@ public class OcrController {
             throw new IllegalArgumentException("Receipt image is empty");
         }
 
-        UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes());
+        UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes(StandardCharsets.UTF_8));
         return ResponseEntity.ok(ocrService.processReceipt(image, userId));
     }
 }

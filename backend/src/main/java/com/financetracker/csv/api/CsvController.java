@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,7 +37,7 @@ public class CsvController {
             throw new IllegalArgumentException("CSV file is empty");
         }
 
-        UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes());
+        UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes(StandardCharsets.UTF_8));
         return ResponseEntity.ok(csvImportService.parse(file, userId));
     }
 }
