@@ -39,20 +39,21 @@ jobs:
 
       - name: Display coverage percentage
         run: |
-          REPORT=backend/build/reports/jacoco/test/html/index.html
-          if [ -f "$REPORT" ]; then
+          XML=backend/build/reports/jacoco/test/jacocoTestReport.xml
+          if [ -f "$XML" ]; then
             echo "## JaCoCo Coverage Summary" >> $GITHUB_STEP_SUMMARY
-            grep -oP '(instruction|line|branch|method|class)\s+\d+%\s*\(\d+/\d+\)' "$REPORT" \
-              | sed 's/^/| /' \
-              | awk 'BEGIN{print "| Type | Coverage |"; print "|------|----------|"} {print "|" $0 "|"}' \
-              >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Detailed Coverage" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -oP '(instruction|line|branch|method|class)\s+\d+%\s*\(\d+/\d+\)' "$REPORT" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '| Type | Missed | Covered | Total | Coverage |' >> $GITHUB_STEP_SUMMARY
+            echo '|------|--------|---------|-------|----------|' >> $GITHUB_STEP_SUMMARY
+            for type in INSTRUCTION LINE BRANCH METHOD CLASS; do
+              data=$(grep -oP "<counter type=\"$type\" missed=\"\d+\" covered=\"\d+\"/>" "$XML" | tail -1)
+              missed=$(echo "$data" | grep -oP 'missed="\K\d+')
+              covered=$(echo "$data" | grep -oP 'covered="\K\d+')
+              total=$((missed + covered))
+              pct=$(awk "BEGIN {printf \"%.0f\", ($covered / $total) * 100}")
+              echo "| $type | $missed | $covered | $total | ${pct}% |" >> $GITHUB_STEP_SUMMARY
+            done
           else
-            echo "⚠️ JaCoCo report not found at $REPORT"
+            echo "⚠️ JaCoCo XML report not found at $XML"
           fi
 
       - name: Upload JaCoCo coverage report
