@@ -13,4 +13,4 @@ public record ParsedTransactionResponse(
     @Schema(description = "Parsed amount", example = "12.50") BigDecimal amount,
     @Schema(description = "Auto-detected category", example = "Coffee Shop") String category,
     @Schema(description = "Whether this transaction appears to be a duplicate", example = "false") boolean isDuplicate
-) {}
+) { }

@@ -1,12 +1,14 @@
 package com.financetracker.common.config.rate_limiting;
 
 import jakarta.validation.constraints.Positive;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,7 +16,8 @@ import java.util.Map;
  * Configuration properties for rate limiting.
  * Supports per-client overrides with a default fallback.
  */
-@Data
+@Getter
+@Setter
 @Component
 @Validated
 @ConfigurationProperties(prefix = "app.rate-limiting")
@@ -29,7 +32,24 @@ public class RateLimitProperties {
     /** Per-client overrides keyed by X-Client-Id prefix */
     private Map<String, ClientLimit> clients = new HashMap<>();
 
-    @Data
+    public Map<String, ClientLimit> getClients() {
+        return Collections.unmodifiableMap(clients);
+    }
+
+    public void setClients(Map<String, ClientLimit> clients) {
+        this.clients = new HashMap<>(clients);
+    }
+
+    public ClientLimit getDefaults() {
+        return new ClientLimit(defaults.getCapacity(), defaults.getRefillTokens(), defaults.getRefillPeriod());
+    }
+
+    public void setDefaults(ClientLimit defaults) {
+        this.defaults = new ClientLimit(defaults.getCapacity(), defaults.getRefillTokens(), defaults.getRefillPeriod());
+    }
+
+    @Getter
+    @Setter
     public static class ClientLimit {
         @Positive
         private int capacity;

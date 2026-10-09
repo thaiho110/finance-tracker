@@ -1,6 +1,5 @@
 package com.financetracker.transaction.service;
 
-import com.financetracker.transaction.model.Transaction;
 import com.financetracker.transaction.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

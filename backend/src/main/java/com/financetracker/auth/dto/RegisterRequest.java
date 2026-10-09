@@ -9,4 +9,4 @@ public record RegisterRequest(
 
     @Schema(description = "Password (min 8 characters)", example = "mySecurePassword123", minLength = 8)
     @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(min = 8, max = 100) String password
-) {}
+) { }

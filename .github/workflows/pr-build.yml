@@ -24,12 +24,37 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x backend/gradlew
 
+      - name: Verify Docker is available (required for Testcontainers)
+        run: docker version
+
+      - name: Pre-pull PostgreSQL image (speeds up Testcontainers)
+        run: docker pull postgres:17-alpine
+
       - name: Build and run tests
         run: cd backend && ./gradlew check --no-daemon
 
       - name: Run quality checks
         run: cd backend && ./gradlew checkstyleMain pmdMain spotbugsMain --no-daemon
         continue-on-error: true
+
+      - name: Display coverage percentage
+        run: |
+          XML=backend/build/reports/jacoco/test/jacocoTestReport.xml
+          if [ -f "$XML" ]; then
+            echo "## JaCoCo Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            echo '| Type | Missed | Covered | Total | Coverage |' >> $GITHUB_STEP_SUMMARY
+            echo '|------|--------|---------|-------|----------|' >> $GITHUB_STEP_SUMMARY
+            for type in INSTRUCTION LINE BRANCH METHOD CLASS; do
+              data=$(grep -oP "<counter type=\"$type\" missed=\"\d+\" covered=\"\d+\"/>" "$XML" | tail -1)
+              missed=$(echo "$data" | grep -oP 'missed="\K\d+')
+              covered=$(echo "$data" | grep -oP 'covered="\K\d+')
+              total=$((missed + covered))
+              pct=$(awk "BEGIN {printf \"%.0f\", ($covered / $total) * 100}")
+              echo "| $type | $missed | $covered | $total | ${pct}% |" >> $GITHUB_STEP_SUMMARY
+            done
+          else
+            echo "⚠️ JaCoCo XML report not found at $XML"
+          fi
 
       - name: Upload JaCoCo coverage report
         uses: actions/upload-artifact@v5

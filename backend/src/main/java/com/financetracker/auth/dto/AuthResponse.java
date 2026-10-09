@@ -15,4 +15,4 @@ public record AuthResponse(
 
     @Schema(description = "User role", example = "user")
     String role
-) {}
+) { }

@@ -15,4 +15,23 @@
     <Match>
         <Source name="~.*Application\.java"/>
     </Match>
+
+    <!-- EI_EXPOSE_REP2: False positives for Spring-injected dependencies (singleton beans) -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+        <Or>
+            <Class name="com.financetracker.auth.config.SecurityConfig"/>
+            <Class name="com.financetracker.transaction.service.TransactionService"/>
+            <Class name="com.financetracker.transaction.api.TransactionController"/>
+            <Class name="com.financetracker.common.config.rate_limiting.InMemoryRateLimiter"/>
+        </Or>
+    </Match>
+
+    <!-- EI_EXPOSE_REP: False positives for Spring-injected beans stored as fields -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+        <Or>
+            <Class name="com.financetracker.transaction.service.TransactionService"/>
+        </Or>
+    </Match>
 </FindBugsFilter>

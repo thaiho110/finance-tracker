@@ -9,13 +9,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
-import java.awt.*;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,7 +29,7 @@ public class OcrService {
     private int imageMaxWidth;
 
     /**
-     * Process a receipt image through the Vision API.
+     * Process a receipt image.
      * The raw image bytes are discarded after processing.
      * A normalized version is generated for potential storage.
      */
@@ -45,9 +44,9 @@ public class OcrService {
             // 2. Normalize image (resize, convert to standard format)
             byte[] normalizedImage = normalizeImage(imageBytes);
 
-            // 3. Call Vision API (placeholder — requires OpenAI API key)
-            // TODO: Implement OpenAI Vision API call with normalizedImage
-            ParsedReceiptResponse response = callVisionApi(normalizedImage);
+            // 3. Extract receipt data (stub — replace with actual OCR implementation)
+            // TODO: Implement actual OCR extraction (e.g. Tesseract Tess4J)
+            ParsedReceiptResponse response = extractReceiptData(normalizedImage);
 
             // 4. Check duplicates
             boolean isDuplicate = deduplicationService.isDuplicate(userId, response.date(), response.totalAmount());
@@ -105,15 +104,10 @@ public class OcrService {
     }
 
     /**
-     * Placeholder for OpenAI Vision API call.
-     * TODO: Implement with actual OpenAI client when API key is configured.
+     * Placeholder for OCR extraction.
+     * TODO: Implement actual OCR logic (e.g. Tesseract via Tess4J).
      */
-    private ParsedReceiptResponse callVisionApi(byte[] normalizedImage) {
-        // Encode image to base64 for API call
-        String base64Image = Base64.getEncoder().encodeToString(normalizedImage);
-
-        // TODO: Make HTTP call to OpenAI Vision API with gpt-4o-mini
-        // For now, return a placeholder
+    private ParsedReceiptResponse extractReceiptData(byte[] normalizedImage) {
         return new ParsedReceiptResponse(
             "UNKNOWN MERCHANT",
             LocalDate.now(),

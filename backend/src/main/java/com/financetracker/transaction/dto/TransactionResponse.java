@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,5 +22,9 @@ public record TransactionResponse(
     @Schema(description = "Record creation timestamp") LocalDateTime createdAt,
     @Schema(description = "Receipt line items (only for OCR-sourced transactions)") List<ReceiptItemResponse> receiptItems
 ) {
-    public record ReceiptItemResponse(UUID id, String itemDescription, BigDecimal price) {}
+    public TransactionResponse {
+        receiptItems = Collections.unmodifiableList(receiptItems);
+    }
+
+    public record ReceiptItemResponse(UUID id, String itemDescription, BigDecimal price) { }
 }

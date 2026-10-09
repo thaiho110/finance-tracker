@@ -11,4 +11,4 @@ public record AuthRequest(
 
     @Schema(description = "User password", example = "mySecurePassword123")
     @NotBlank String password
-) {}
+) { }
