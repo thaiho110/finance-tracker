@@ -1,69 +1,64 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetTransactionsSummaryQuery } from '@/store/api/transaction-api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowUpRight, TrendingUp, TrendingDown, Wallet, Receipt, Upload } from 'lucide-react';
+import { StatCard } from '@/components/ui/stat-card';
+import { CategoryBadge } from '@/components/ui/category-badge';
+import { TrendingUp, Wallet, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
-
-const COLORS = [
-  'oklch(0.65 0.2 160)', 'oklch(0.7 0.15 250)', 'oklch(0.75 0.15 50)',
-  'oklch(0.7 0.15 330)', 'oklch(0.6 0.15 190)', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16',
-];
-
-function formatCurrency(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(Math.abs(n));
-}
+import { formatCurrency, formatCurrencyFull, formatDateShort, CHART_COLORS, getCategoryTone, getChartColor } from '@/lib/utils';
+import { cn } from 'cn';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { data, isLoading } = useGetTransactionsSummaryQuery({});
+  const now = new Date();
+  const [viewMonth, setViewMonth] = useState({ year: now.getFullYear(), month: now.getMonth() }); // 0-indexed
+
+  const from = `${viewMonth.year}-${String(viewMonth.month + 1).padStart(2, '0')}-01`;
+  const to = `${viewMonth.year}-${String(viewMonth.month + 1).padStart(2, '0')}-${new Date(viewMonth.year, viewMonth.month + 1, 0).getDate()}`;
+
+  const { data, isLoading } = useGetTransactionsSummaryQuery({ from, to });
+
+  const prevMonth = () => setViewMonth(m => m.month === 0 ? { year: m.year - 1, month: 11 } : { ...m, month: m.month - 1 });
+  const nextMonth = () => {
+    if (viewMonth.year === now.getFullYear() && viewMonth.month >= now.getMonth()) return;
+    setViewMonth(m => m.month === 11 ? { year: m.year + 1, month: 0 } : { ...m, month: m.month + 1 });
+  };
+
+  const monthLabel = new Date(viewMonth.year, viewMonth.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div>
-          <Skeleton className="h-8 w-48 bg-muted/50" />
-          <Skeleton className="mt-1 h-4 w-64 bg-muted/30" />
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-28" />
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="border-border/50"><CardContent className="p-6"><Skeleton className="h-12 w-24 bg-muted/30" /></CardContent></Card>
-          ))}
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-[12px]" />)}
         </div>
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="border-border/50"><CardContent className="p-6"><Skeleton className="h-64 w-full bg-muted/30" /></CardContent></Card>
-          <Card className="border-border/50"><CardContent className="p-6"><Skeleton className="h-64 w-full bg-muted/30" /></CardContent></Card>
+          <Skeleton className="h-80 rounded-[12px]" />
+          <Skeleton className="h-80 rounded-[12px]" />
         </div>
       </div>
     );
   }
 
-  if (!data) {
+  if (!data || (data.transactionCount === 0 && !data.totalExpenses)) {
     return (
       <div className="flex flex-col items-center justify-center py-32">
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10">
-          <Wallet className="h-10 w-10 text-emerald-400" />
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-brand-primary-soft">
+          <Wallet className="h-10 w-10 text-brand-primary" />
         </div>
-        <h2 className="mb-2 text-xl font-semibold text-foreground">Welcome to Finance Tracker!</h2>
-        <p className="mb-8 text-muted-foreground">Upload your first CSV to see your spending breakdown.</p>
-        <Button
-          onClick={() => navigate('/upload')}
-          className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-emerald-500"
-        >
-          <Upload className="mr-2 h-4 w-4" />
+        <h2 className="mb-2 text-[28px] font-semibold text-text-default">Welcome to Finance Tracker!</h2>
+        <p className="mb-8 text-text-muted">Upload your first CSV to see your spending breakdown.</p>
+        <Button onClick={() => navigate('/upload')}>
+          <Upload className="size-4" />
           Upload CSV
         </Button>
       </div>
@@ -80,151 +75,176 @@ export default function DashboardPage() {
     amount: Math.abs(m.total),
   }));
 
+  const totalMonth = categoryData.reduce((sum: number, c: any) => sum + c.value, 0);
+  const isCurrentMonth = viewMonth.year === now.getFullYear() && viewMonth.month === now.getMonth();
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header — month switcher + Import button */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Your financial overview</p>
+        <div className="flex items-center gap-3">
+          <button onClick={prevMonth} className="rounded-[8px] p-1 text-text-muted hover:bg-bg-muted hover:text-text-default transition-colors">
+            <ChevronLeft className="size-5" />
+          </button>
+          <h1 className="page-title">{monthLabel}</h1>
+          <button
+            onClick={nextMonth}
+            disabled={isCurrentMonth}
+            className={cn(
+              'rounded-[8px] p-1 transition-colors',
+              isCurrentMonth ? 'text-text-muted/30 cursor-not-allowed' : 'text-text-muted hover:bg-bg-muted hover:text-text-default'
+            )}
+          >
+            <ChevronRight className="size-5" />
+          </button>
         </div>
-        <Button
-          onClick={() => navigate('/upload')}
-          variant="outline"
-          className="border-border/50 bg-card/50 text-muted-foreground hover:text-foreground"
-        >
-          <Upload className="mr-2 h-4 w-4" />
-          Import
+        <Button onClick={() => navigate('/upload')}>
+          <Upload className="size-4" />
+          Import CSV
         </Button>
       </div>
 
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="card-hover border-border/50 bg-gradient-to-br from-card to-card/80">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Expenses</CardTitle>
-              <div className="rounded-lg bg-red-500/10 p-1.5">
-                <TrendingDown className="h-3.5 w-3.5 text-red-400" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold tabular-nums text-red-400">{formatCurrency(data.totalExpenses || 0)}</p>
-          </CardContent>
-        </Card>
-        <Card className="card-hover border-border/50 bg-gradient-to-br from-card to-card/80">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Income</CardTitle>
-              <div className="rounded-lg bg-emerald-500/10 p-1.5">
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold tabular-nums text-emerald-400">{formatCurrency(data.totalIncome || 0)}</p>
-          </CardContent>
-        </Card>
-        <Card className="card-hover border-border/50 bg-gradient-to-br from-card to-card/80">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Transactions</CardTitle>
-              <div className="rounded-lg bg-blue-500/10 p-1.5">
-                <Receipt className="h-3.5 w-3.5 text-blue-400" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold tabular-nums text-foreground">{data.transactionCount || 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="card-hover border-border/50 bg-gradient-to-br from-card to-card/80">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Average</CardTitle>
-              <div className="rounded-lg bg-purple-500/10 p-1.5">
-                <ArrowUpRight className="h-3.5 w-3.5 text-purple-400" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold tabular-nums text-foreground">{formatCurrency(data.averageTransaction || 0)}</p>
-          </CardContent>
-        </Card>
+        <StatCard
+          label="Total Expenses"
+          value={data.totalExpenses || 0}
+          delta={data.expenseDelta || undefined}
+          deltaPositive={false}
+          icon={<TrendingUp className="size-4" />}
+        />
+        <StatCard
+          label="Transactions"
+          value={data.transactionCount || 0}
+          delta={data.countDelta || undefined}
+          isText
+        />
+        <StatCard
+          label="Avg Transaction"
+          value={data.averageTransaction || 0}
+          delta={data.avgDelta || undefined}
+        />
+        <StatCard
+          label="Top Category"
+          value={data.topCategory || '—'}
+          delta={data.topCategoryDelta || undefined}
+          isText
+        />
       </div>
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Category breakdown */}
-        <Card className="border-border/50">
+        {/* Donut chart — Spending by Category */}
+        <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-semibold text-foreground">Spending by Category</CardTitle>
+            <CardTitle>Spending by Category</CardTitle>
           </CardHeader>
           <CardContent>
             {categoryData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {categoryData.map((_: any, i: number) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="none" />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => [formatCurrency(value), 'Amount']}
-                    contentStyle={{
-                      background: 'oklch(0.18 0.02 240)',
-                      border: '1px solid oklch(0.28 0.02 240)',
-                      borderRadius: '8px',
-                      color: 'oklch(0.95 0 0)',
-                      fontSize: '13px',
-                    }}
-                  />
-                  <Legend
-                    formatter={(value: string) => <span style={{ color: 'oklch(0.6 0.02 240)', fontSize: '12px' }}>{value}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="relative">
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%" cy="50%"
+                      innerRadius={72} outerRadius={108}
+                      paddingAngle={3}
+                      dataKey="value"
+                      onClick={(_, idx) => {
+                        const cat = categoryData[idx]?.name;
+                        if (cat) navigate(`/transactions?category=${encodeURIComponent(cat)}`);
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {categoryData.map((_: any, i: number) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => [formatCurrencyFull(value), 'Amount']}
+                      contentStyle={{
+                        background: 'var(--color-bg-surface)',
+                        border: '1px solid var(--color-border-default)',
+                        borderRadius: '8px',
+                        color: 'var(--color-text-default)',
+                        fontSize: '13px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Center text */}
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-[11px] text-text-muted uppercase tracking-wider">Total</span>
+                  <span className="text-[20px] font-mono font-semibold text-text-default">
+                    {formatCurrency(totalMonth)}
+                  </span>
+                </div>
+                {/* Legend */}
+                <div className="flex flex-wrap gap-3 mt-2 justify-center">
+                  {categoryData.map((c: any, i: number) => (
+                    <button
+                      key={c.name}
+                      onClick={() => navigate(`/transactions?category=${encodeURIComponent(c.name)}`)}
+                      className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-default transition-colors"
+                    >
+                      <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      {c.name} {formatCurrency(c.value)}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : (
-              <p className="py-12 text-center text-sm text-muted-foreground">No category data yet</p>
+              <p className="py-12 text-center text-sm text-text-muted">No category data yet</p>
             )}
           </CardContent>
         </Card>
 
-        {/* Monthly trend */}
-        <Card className="border-border/50">
+        {/* Bar chart — Monthly Spending */}
+        <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-semibold text-foreground">Monthly Spending</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Monthly Spending</CardTitle>
+              {monthlyData.length >= 2 && (
+                <div className="flex items-center gap-1.5 rounded-full bg-bg-muted px-2.5 py-0.5 text-xs font-medium text-text-muted">
+                  <TrendingUp className="size-3" />
+                  {(() => {
+                    const curr = monthlyData[monthlyData.length - 1]?.amount || 0;
+                    const prev = monthlyData[monthlyData.length - 2]?.amount || 1;
+                    const pct = prev > 0 ? ((curr - prev) / prev * 100).toFixed(1) : '0';
+                    return `${Number(pct) >= 0 ? '+' : ''}${pct}% vs previous`;
+                  })()}
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {monthlyData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={monthlyData}>
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'oklch(0.6 0.02 240)' }} axisLine={{ stroke: 'oklch(0.28 0.02 240)' }} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: 'oklch(0.6 0.02 240)' }} tickFormatter={(v) => `$${v}`} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--color-text-muted)' }} axisLine={{ stroke: 'var(--color-border-default)' }} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: 'var(--color-text-muted)' }} tickFormatter={(v) => formatCurrency(v)} axisLine={false} tickLine={false} />
                   <Tooltip
-                    formatter={(value: number) => [formatCurrency(value), 'Spending']}
+                    formatter={(value: number) => [formatCurrencyFull(value), 'Spending']}
                     contentStyle={{
-                      background: 'oklch(0.18 0.02 240)',
-                      border: '1px solid oklch(0.28 0.02 240)',
+                      background: 'var(--color-bg-surface)',
+                      border: '1px solid var(--color-border-default)',
                       borderRadius: '8px',
-                      color: 'oklch(0.95 0 0)',
+                      color: 'var(--color-text-default)',
                       fontSize: '13px',
                     }}
                   />
-                  <Bar dataKey="amount" fill="oklch(0.65 0.2 160)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
+                    {monthlyData.map((_: unknown, i: number) => (
+                      <Cell
+                        key={i}
+                        fill={i === monthlyData.length - 1 ? 'var(--color-brand-primary)' : 'var(--color-brand-primary-soft)'}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="py-12 text-center text-sm text-muted-foreground">No monthly data yet</p>
+              <p className="py-12 text-center text-sm text-text-muted">No monthly data yet</p>
             )}
           </CardContent>
         </Card>
@@ -232,34 +252,38 @@ export default function DashboardPage() {
 
       {/* Recent transactions */}
       {data.recentTransactions && data.recentTransactions.length > 0 && (
-        <Card className="border-border/50">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-semibold text-foreground">Recent Transactions</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Recent Transactions</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/transactions')}>
+                View all
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-1">
-              {data.recentTransactions.slice(0, 5).map((tx: any, i: number) => (
+            <div className="divide-y divide-border-default">
+              {data.recentTransactions.slice(0, 5).map((tx: any) => (
                 <div
                   key={tx.id}
-                  className="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2.5 transition-all hover:bg-muted/50"
+                  className="flex items-center justify-between py-3 cursor-pointer hover:bg-bg-canvas -mx-5 px-5 transition-colors"
                   onClick={() => navigate(`/transactions/${tx.id}`)}
-                  style={{ animationDelay: `${i * 50}ms` }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                      <span className="text-xs font-medium text-muted-foreground">{tx.cleanMerchant?.charAt(0) || '?'}</span>
+                    <div className="flex size-9 items-center justify-center rounded-full bg-bg-muted">
+                      <span className="text-xs font-medium text-text-muted">
+                        {tx.cleanMerchant?.charAt(0) || '?'}
+                      </span>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-foreground">{tx.cleanMerchant}</p>
-                      <p className="text-xs text-muted-foreground">{tx.date}</p>
+                      <p className="text-sm font-medium text-text-default">{tx.cleanMerchant}</p>
+                      <p className="text-xs text-text-muted">{formatDateShort(tx.date)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="border-0 bg-muted text-xs font-normal text-muted-foreground">
-                      {tx.category}
-                    </Badge>
-                    <span className={`text-sm font-semibold tabular-nums ${tx.amount < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                      {tx.amount < 0 ? '-' : '+'}{formatCurrency(tx.amount)}
+                  <div className="flex items-center gap-3">
+                    <CategoryBadge category={tx.category} />
+                    <span className="text-sm font-semibold text-mono tabular-nums text-right text-text-default min-w-[80px]">
+                      {formatCurrencyFull(tx.amount)}
                     </span>
                   </div>
                 </div>

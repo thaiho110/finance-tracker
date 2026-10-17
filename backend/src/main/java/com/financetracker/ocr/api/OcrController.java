@@ -21,19 +21,19 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/ocr")
 @RequiredArgsConstructor
-@Tag(name = "Receipt OCR", description = "Upload receipt images for OCR extraction")
+@Tag(name = "Receipt OCR", description = "Upload receipt images or PDFs for OCR extraction")
 public class OcrController {
 
     private final OcrService ocrService;
 
     @PostMapping(value = "/process", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload a receipt image and extract transaction data")
+    @Operation(summary = "Upload a receipt image or PDF and extract transaction data")
     public ResponseEntity<ParsedReceiptResponse> processReceipt(
             @RequestParam("image") MultipartFile image,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         if (image.isEmpty()) {
-            throw new IllegalArgumentException("Receipt image is empty");
+            throw new IllegalArgumentException("Receipt file is empty");
         }
 
         UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes(StandardCharsets.UTF_8));

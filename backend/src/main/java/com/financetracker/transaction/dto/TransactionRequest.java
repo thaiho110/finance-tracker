@@ -2,6 +2,7 @@ package com.financetracker.transaction.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -9,7 +10,7 @@ import java.time.LocalDate;
 @Schema(description = "Transaction data")
 public record TransactionRequest(
     @Schema(description = "Transaction date", example = "2024-01-15")
-    @NotBlank LocalDate date,
+    @NotNull LocalDate date,
 
     @Schema(description = "Raw description from bank statement or receipt", example = "STARBUCKS #12345")
     @NotBlank String rawDescription,

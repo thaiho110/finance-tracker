@@ -1,0 +1,31 @@
+/* Finance Tracker — design tokens exported from Figma ("Color" collection, Light mode).
+   Drop into packages/web/src/index.css (:root) and map to shadcn variables as needed. */
+:root {
+  --bg-canvas: #f6f5f1;
+  --bg-surface: #ffffff;
+  --bg-muted: #efeee8;
+  --bg-sidebar: #fbfaf7;
+  --border-default: #e3e1d9;
+  --border-strong: #cfccc1;
+  --text-default: #17191a;
+  --text-muted: #6a6e68;
+  --text-on-primary: #ffffff;
+  --brand-primary: #1e6b47;
+  --brand-primary-soft: #e2f0e8;
+  --status-warning: #a86a12;
+  --status-warning-soft: #fbf0d9;
+  --status-danger: #b93a2c;
+  --status-danger-soft: #fae5e2;
+  --chart-1: #1e6b47; /* Food & Dining */
+  --chart-2: #2a9d8f; /* Transport */
+  --chart-3: #e0a13a; /* Shopping */
+  --chart-4: #e3704f; /* Bills & Utilities */
+  --chart-5: #5d6c7b; /* Other */
+  --chart-6: #8c6bb1; /* Entertainment */
+  --radius-sm: 6px;   /* table cells, small buttons */
+  --radius-md: 8px;   /* buttons, inputs */
+  --radius-lg: 12px;  /* cards, tables */
+  --radius-xl: 16px;  /* dialogs, dropzone */
+  --font-sans: 'Geist Variable', sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+}
