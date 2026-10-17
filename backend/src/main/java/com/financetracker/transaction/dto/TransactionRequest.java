@@ -1,11 +1,13 @@
 package com.financetracker.transaction.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Schema(description = "Transaction data")
 public record TransactionRequest(
@@ -25,5 +27,14 @@ public record TransactionRequest(
     @NotBlank String category,
 
     @Schema(description = "Source type", example = "CSV")
-    @NotBlank String sourceType
-) { }
+    @NotBlank String sourceType,
+
+    @Schema(description = "Receipt line items; saved only for OCR transactions", nullable = true)
+    @Valid List<ReceiptLineItemRequest> lineItems
+) {
+    /** A transaction without receipt line items (CSV, manual entry, updates). */
+    public TransactionRequest(LocalDate date, String rawDescription, String cleanMerchant,
+                              BigDecimal amount, String category, String sourceType) {
+        this(date, rawDescription, cleanMerchant, amount, category, sourceType, null);
+    }
+}

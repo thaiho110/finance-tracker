@@ -6,7 +6,11 @@ COPY build.gradle.kts settings.gradle.kts gradle.properties ./
 COPY src src
 RUN ./gradlew bootJar --no-daemon
 
-FROM eclipse-temurin:21-jre-alpine
+# Runtime: Ubuntu-based JRE so receipt OCR can use the distro's Tesseract 5 packages (ADR-014).
+FROM eclipse-temurin:21-jre
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng tesseract-ocr-vie \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Download OpenTelemetry Java Agent

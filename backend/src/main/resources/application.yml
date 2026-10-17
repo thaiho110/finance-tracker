@@ -29,6 +29,12 @@ spring:
     locations: classpath:db/migration
     placeholder-replacement: false
 
+  # Phone photos are usually 2–8 MB; Spring's default limit is 1 MB.
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
 server:
   port: 8080
   shutdown: graceful
@@ -92,10 +98,18 @@ app:
     secret: ${JWT_SECRET:3mhbSeM7+F+apqIdX3djTlRWItB0HiiKEoqAZfiEIjE=}
     expiration: 86400000
     refresh-expiration: 604800000
+  # Receipt OCR with local Tesseract (ADR-014)
   ocr:
-    image-max-width: 1024
+    languages: vie+eng
+    page-seg-mode: 6            # single uniform block of text
+    fallback-page-seg-mode: 4   # retried when no total is found; 0 disables
+    timeout: 15s
+    max-concurrent: 2           # Tesseract is CPU-bound
     pdf-dpi: 300
     image-retention: NONE
+    tesseract:
+      command: ${TESSERACT_CMD:tesseract}
+      tessdata-path: ${TESSDATA_PATH:}
 ---
 spring:
   config:

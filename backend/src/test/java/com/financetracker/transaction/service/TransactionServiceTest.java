@@ -1,5 +1,6 @@
 package com.financetracker.transaction.service;
 
+import com.financetracker.transaction.dto.ReceiptLineItemRequest;
 import com.financetracker.transaction.dto.TransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
 import com.financetracker.transaction.model.ReceiptItem;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -145,5 +147,50 @@ class TransactionServiceTest {
 
         verify(receiptItemRepository).deleteByTransactionId(transactionId);
         verify(transactionRepository).delete(testTransaction);
+    }
+
+    @Test
+    @DisplayName("Should save receipt line items for OCR transactions")
+    @SuppressWarnings("unchecked")
+    void shouldSaveReceiptLineItemsForOcr() {
+        TransactionRequest ocrRequest = new TransactionRequest(
+            LocalDate.of(2026, 10, 17), "Bach Hoa Xanh", "Bach Hoa Xanh", BigDecimal.valueOf(90_000),
+            "Food & Dining", "OCR",
+            List.of(new ReceiptLineItemRequest("RAU MUONG ", BigDecimal.valueOf(12_000)),
+                new ReceiptLineItemRequest("GAO ST25 2KG", BigDecimal.valueOf(78_000))));
+        Transaction saved = Transaction.builder()
+            .id(transactionId)
+            .date(LocalDate.of(2026, 10, 17))
+            .rawDescription("Bach Hoa Xanh")
+            .cleanMerchant("Bach Hoa Xanh")
+            .amount(BigDecimal.valueOf(90_000))
+            .category("Food & Dining")
+            .sourceType(SourceType.OCR)
+            .clientId("finance-tracker-web")
+            .isDuplicate(false)
+            .createdBy(userId)
+            .build();
+        when(transactionRepository.saveAll(any())).thenReturn(List.of(saved));
+
+        transactionService.batchCreate(List.of(ocrRequest), userId, "finance-tracker-web");
+
+        ArgumentCaptor<List<ReceiptItem>> captor = ArgumentCaptor.forClass(List.class);
+        verify(receiptItemRepository).saveAll(captor.capture());
+        assertThat(captor.getValue()).hasSize(2);
+        assertThat(captor.getValue()).allSatisfy(item -> assertThat(item.getTransactionId()).isEqualTo(transactionId));
+        assertThat(captor.getValue()).extracting(ReceiptItem::getItemDescription).containsExactly("RAU MUONG", "GAO ST25 2KG");
+    }
+
+    @Test
+    @DisplayName("Should ignore line items on non-OCR transactions")
+    void shouldIgnoreLineItemsForCsv() {
+        TransactionRequest csvRequest = new TransactionRequest(
+            LocalDate.of(2024, 1, 15), "STARBUCKS #12345", "STARBUCKS", BigDecimal.valueOf(12.50), "Coffee Shop", "CSV",
+            List.of(new ReceiptLineItemRequest("Latte", BigDecimal.valueOf(12.50))));
+        when(transactionRepository.saveAll(any())).thenReturn(List.of(testTransaction));
+
+        transactionService.batchCreate(List.of(csvRequest), userId, "finance-tracker-web");
+
+        verify(receiptItemRepository, never()).saveAll(any());
     }
 }
