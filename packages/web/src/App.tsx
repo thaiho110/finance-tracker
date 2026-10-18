@@ -1,9 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { setCredentials, setLoading } from '@/store/auth-slice';
+import { useDispatch } from 'react-redux';
+import { logout, setCredentials, setLoading } from '@/store/auth-slice';
+import { authApi } from '@/store/api/auth-api';
 import { tokenStorage } from '@/lib/token-storage';
-import type { RootState } from '@/store';
+import { emailFromToken } from '@/lib/jwt';
+import type { AppDispatch } from '@/store';
 import { AppLayout } from '@/layouts/app-layout';
 import { AuthLayout } from '@/layouts/auth-layout';
 import { ProtectedRoute } from '@/components/guards/auth-guard';
@@ -16,8 +18,7 @@ import UploadPage from '@/pages/upload-page';
 import { Toaster } from '@/components/ui/sonner';
 
 function AuthCheck({ children }: { children: React.ReactNode }) {
-  const dispatch = useDispatch();
-  const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
+  const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
     const token = tokenStorage.getToken();
@@ -29,27 +30,36 @@ function AuthCheck({ children }: { children: React.ReactNode }) {
     document.documentElement.classList.toggle('dark', darkPref === 'true');
     document.documentElement.classList.remove('light');
 
-    if (token && refreshToken) {
-      // Try to restore session from stored tokens
-      // The backend will validate on the first API call
-      dispatch(setCredentials({
-        token,
-        refreshToken,
-        email: '', // Will be populated from API response
-        role: 'user',
-      }));
-    } else {
+    if (!token || !refreshToken) {
       dispatch(setLoading(false));
+      return;
     }
-  }, [dispatch]);
 
-  // If authenticated and email is empty (restored from storage), try to get user info
-  // For now, just mark as loaded
-  useEffect(() => {
-    if (isAuthenticated) {
-      dispatch(setLoading(false));
-    }
-  }, [isAuthenticated, dispatch]);
+    // Redux state lives in memory, so after a reload only the tokens survive (in localStorage).
+    // Ask the server who they belong to before rendering protected pages (ProtectedRoute shows a
+    // spinner while isLoading). base-query refreshes an expired access token on the way.
+    dispatch(authApi.endpoints.me.initiate(undefined, { subscribe: false, forceRefetch: true }))
+      .unwrap()
+      .then((user) => {
+        dispatch(setCredentials({
+          token: tokenStorage.getToken() ?? token,
+          refreshToken: tokenStorage.getRefreshToken() ?? refreshToken,
+          email: user.email,
+          role: user.role,
+        }));
+      })
+      .catch((err: { status?: number | string }) => {
+        if (err?.status === 401) {
+          // Session expired and could not be refreshed: sign out cleanly.
+          tokenStorage.clear();
+          dispatch(logout());
+          return;
+        }
+        // Server unreachable: keep the session (the token may still be valid) and show the
+        // email from the token until the next successful call.
+        dispatch(setCredentials({ token, refreshToken, email: emailFromToken(token) ?? '', role: '' }));
+      });
+  }, [dispatch]);
 
   return <>{children}</>;
 }

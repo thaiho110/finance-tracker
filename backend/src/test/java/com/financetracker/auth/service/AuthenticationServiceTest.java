@@ -3,9 +3,11 @@ package com.financetracker.auth.service;
 import com.financetracker.auth.dto.AuthRequest;
 import com.financetracker.auth.dto.AuthResponse;
 import com.financetracker.auth.dto.RegisterRequest;
+import com.financetracker.auth.dto.UserInfoResponse;
 import com.financetracker.auth.model.User;
 import com.financetracker.auth.repository.UserRepository;
 import com.financetracker.common.exception.AuthenticationException;
+import io.jsonwebtoken.MalformedJwtException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -126,5 +128,35 @@ class AuthenticationServiceTest {
         assertThatThrownBy(() -> authService.refreshToken("InvalidHeader"))
             .isInstanceOf(AuthenticationException.class)
             .hasMessageContaining("Invalid refresh token");
+    }
+
+    @Test
+    @DisplayName("Should reject an expired or malformed refresh token with an authentication error")
+    void shouldRejectInvalidRefreshToken() {
+        when(jwtService.extractUsername("expired-token")).thenThrow(new MalformedJwtException("expired"));
+
+        assertThatThrownBy(() -> authService.refreshToken("Bearer expired-token"))
+            .isInstanceOf(AuthenticationException.class)
+            .hasMessageContaining("invalid or expired");
+    }
+
+    @Test
+    @DisplayName("Should return the current user's email and role")
+    void shouldReturnCurrentUser() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+
+        UserInfoResponse me = authService.currentUser("test@example.com");
+
+        assertThat(me.email()).isEqualTo("test@example.com");
+        assertThat(me.role()).isEqualTo("user");
+    }
+
+    @Test
+    @DisplayName("Should throw when the current user no longer exists")
+    void shouldThrowWhenCurrentUserMissing() {
+        when(userRepository.findByEmail("gone@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.currentUser("gone@example.com"))
+            .isInstanceOf(AuthenticationException.class);
     }
 }

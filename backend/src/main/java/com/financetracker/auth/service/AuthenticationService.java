@@ -3,9 +3,11 @@ package com.financetracker.auth.service;
 import com.financetracker.auth.dto.AuthRequest;
 import com.financetracker.auth.dto.AuthResponse;
 import com.financetracker.auth.dto.RegisterRequest;
+import com.financetracker.auth.dto.UserInfoResponse;
 import com.financetracker.auth.model.User;
 import com.financetracker.auth.repository.UserRepository;
 import com.financetracker.common.exception.AuthenticationException;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -66,7 +68,12 @@ public class AuthenticationService {
             throw new AuthenticationException("Invalid refresh token");
         }
         String refreshToken = authHeader.substring(7);
-        String email = jwtService.extractUsername(refreshToken);
+        String email;
+        try {
+            email = jwtService.extractUsername(refreshToken);
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new AuthenticationException("Refresh token is invalid or expired");
+        }
 
         var user = userRepository.findByEmail(email)
             .orElseThrow(() -> new AuthenticationException("User not found"));
@@ -78,5 +85,17 @@ public class AuthenticationService {
         var newRefreshToken = jwtService.generateRefreshToken(userDetails);
 
         return new AuthResponse(newToken, newRefreshToken, user.getEmail(), user.getRole());
+    }
+
+    /**
+     * The signed-in user's profile, used by clients to restore their session after a reload.
+     *
+     * @param email the authenticated principal's username (email)
+     * @throws AuthenticationException when the account no longer exists
+     */
+    public UserInfoResponse currentUser(String email) {
+        var user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new AuthenticationException("User not found"));
+        return new UserInfoResponse(user.getEmail(), user.getRole());
     }
 }
