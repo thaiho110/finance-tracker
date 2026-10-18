@@ -14,7 +14,7 @@ export function AuthLayout() {
         <div className="mb-8 text-center">
           {/* Brand mark (plan/design/brand): no shadow or wrapper, per the logo rules. */}
           <img src="/mark.svg" alt="" className="mx-auto mb-4 size-14" />
-          <h1 className="text-[28px] font-semibold leading-9 tracking-tight text-text-default">Finance Tracker</h1>
+          <h1 className="text-[28px] font-semibold leading-9 tracking-tight text-text-default">Kept</h1>
           <p className="mt-1 text-sm text-text-muted">Track your spending effortlessly</p>
         </div>
         <Outlet />

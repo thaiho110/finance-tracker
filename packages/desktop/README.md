@@ -1,4 +1,4 @@
-# Finance Tracker — desktop
+# Kept — desktop
 
 Electron shell around the web app (ADR-011, phase 11). The window renders `packages/web` unchanged;
 the main process serves it from `app://finance`, forwards `app://finance/api/*` to the backend and

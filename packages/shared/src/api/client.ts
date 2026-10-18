@@ -69,7 +69,7 @@ export function describeProblem(problem: ProblemDetail | null | undefined): stri
 const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/auth/refresh'];
 
 /**
- * HTTP client for the Finance Tracker API, shared by every client. It adds `X-Client-Id` and the
+ * HTTP client for the Kept API, shared by every client. It adds `X-Client-Id` and the
  * bearer token, refreshes an expired token once (concurrent 401s share one refresh), and clears the
  * session when the refresh fails. Platform specifics come in through {@link TokenStorage}.
  */

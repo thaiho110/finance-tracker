@@ -27,14 +27,14 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
             .info(new Info()
-                .title("Finance Tracker API")
+                .title("Kept API")
                 .version("1.0.0")
                 .description("""
-                    REST API for the CSV + Receipt OCR Finance Tracker.
+                    REST API for Kept, the CSV + receipt OCR finance tracker.
                     Supports CSV bank statement parsing, receipt OCR extraction,
                     transaction management, and DB-backed categorization.
                     """)
-                .contact(new Contact().email("dev@financetracker.com").name("Finance Tracker Team"))
+                .contact(new Contact().email("dev@financetracker.com").name("Kept"))
                 .license(new License().name("MIT").url("https://opensource.org/licenses/MIT")))
             .servers(List.of(
                 new Server().url("http://localhost:8080").description("Local Development"),

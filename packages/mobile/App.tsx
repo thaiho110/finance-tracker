@@ -4,7 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SessionProvider } from './src/session/SessionContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
-/** Finance Tracker mobile (ADR-011, phase 12): bare React Native on the shared API client. */
+/** Kept mobile (ADR-011, phase 12): bare React Native on the shared API client. */
 export default function App() {
   return (
     <SafeAreaProvider>

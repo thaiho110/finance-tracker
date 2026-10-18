@@ -55,7 +55,7 @@ export default function DashboardPage() {
         <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-brand-primary-soft">
           <Wallet className="h-10 w-10 text-brand-primary" />
         </div>
-        <h2 className="mb-2 text-[28px] font-semibold text-text-default">Welcome to Finance Tracker!</h2>
+        <h2 className="mb-2 text-[28px] font-semibold text-text-default">Welcome to Kept!</h2>
         <p className="mb-8 text-text-muted">Upload your first CSV to see your spending breakdown.</p>
         <Button onClick={() => navigate('/upload')}>
           <Upload className="size-4" />

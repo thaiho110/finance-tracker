@@ -4,7 +4,7 @@ import { join, normalize, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /**
- * Finance Tracker desktop (ADR-011, phase 11). The window shows the web app; the main process adds
+ * Kept desktop (ADR-011, phase 11). The window shows the web app; the main process adds
  * what a browser tab can't do safely:
  *  - serves the app from app://finance and forwards app://finance/api/* to the backend, so the UI
  *    calls the API same-origin (no CORS, same code as the web build);
@@ -102,7 +102,7 @@ function createWindow(): void {
     height: 820,
     minWidth: 960,
     minHeight: 640,
-    title: 'Finance Tracker',
+    title: 'Kept',
     backgroundColor: '#F6F5F1',
     icon: join(RENDERER_DIR, 'icon-512.png'),
     autoHideMenuBar: true,

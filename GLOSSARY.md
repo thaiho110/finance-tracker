@@ -1,4 +1,4 @@
-# Finance Tracker
+# Kept
 
 Personal finance tracking tool with CSV import, receipt OCR, and multi-client support.
 

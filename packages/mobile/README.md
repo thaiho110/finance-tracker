@@ -1,4 +1,4 @@
-# Finance Tracker — mobile
+# Kept — mobile
 
 Bare React Native app (ADR-011, phase 12) on the shared API client (`@finance-tracker/shared`).
 

@@ -2,7 +2,7 @@
   "name": "@finance-tracker/desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Finance Tracker for Windows, macOS and Linux (Electron shell around the web app)",
+  "description": "Kept for Windows, macOS and Linux (Electron shell around the web app)",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -29,7 +29,7 @@
   },
   "build": {
     "appId": "com.financetracker.desktop",
-    "productName": "Finance Tracker",
+    "productName": "Kept",
     "directories": {
       "output": "release",
       "buildResources": "build"

@@ -1,5 +1,5 @@
 /**
- * Finance Tracker — shared formatting utilities.
+ * Kept — shared formatting utilities.
  * Currency: VND with ₫ prefix. Dates: "Oct 16" in lists, ISO in forms.
  */
 export function cn(...args: any[]) {

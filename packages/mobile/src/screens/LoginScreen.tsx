@@ -35,7 +35,7 @@ export function LoginScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.brand}>
           <View style={styles.mark}><Text style={styles.markText}>₫</Text></View>
-          <Text style={styles.title}>Finance Tracker</Text>
+          <Text style={styles.title}>Kept</Text>
           <Text style={styles.subtitle}>Sign in to your account</Text>
         </View>
         {error ? <Banner tone="danger">{error}</Banner> : null}
