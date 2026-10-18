@@ -1,6 +1,6 @@
-# Finance Tracker
+# Kept
 
-CSV + Receipt OCR Finance Tracker — a Spring Boot 3.x backend with PostgreSQL, multi-client API, and full Grafana observability stack.
+Kept: a CSV + receipt OCR finance tracker — a Spring Boot 3.x backend with PostgreSQL, multi-client API, and full Grafana observability stack.
 
 ## Architecture
 

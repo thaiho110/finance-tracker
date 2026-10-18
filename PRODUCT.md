@@ -53,7 +53,7 @@ Constraints:
 
 ## Brand Commitments
 
-Working name: **Finance Tracker**. No logo, no visual identity established yet. Blank slate for design.
+Name: **Kept** (previously the working name "Finance Tracker"). No logo, no visual identity established yet. Blank slate for design.
 
 ## Evidence on Hand
 

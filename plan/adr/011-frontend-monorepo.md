@@ -156,3 +156,19 @@ Turborepo caching ensures unchanged packages are skipped on CI.
 - ADR-007: Vite + React + Tailwind + shadcn/ui Frontend
 - ADR-009: Multi-Client API Design
 - ADR-006: Spring Boot 3.x Backend (now 4.1)
+
+## Amendments (2026-10-18, implementation of phases 9, 11, 12)
+
+- **Shared package:** contract types are written by hand (the backend needn't run to build a client);
+  `pnpm gen:types` output stays in `generated/api.ts` for cross-checking. `TokenStorage` methods may be
+  sync or async because the mobile keychain is async; the web and desktop implementations are sync.
+  The package exports its TypeScript source under the `react-native` condition so Metro needs no build step.
+- **Desktop:** the renderer is the web package itself (electron-vite with `packages/web` as renderer root),
+  not a copy of its components. The main process serves it from `app://finance` and forwards
+  `app://finance/api/*` to the backend, so the UI calls the API same-origin and the backend's CORS list
+  doesn't change. Tokens: `safeStorage` behind a synchronous preload bridge (`window.desktop`).
+- **Mobile:** receipts are captured with `react-native-image-picker` (system camera or library) instead of
+  `react-native-vision-camera`: a single photo per receipt doesn't need a custom camera view.
+  `@react-native-documents/picker` replaces the renamed `react-native-document-picker`.
+- **pnpm:** the workspace uses `nodeLinker: hoisted`; React Native's Gradle and CocoaPods tooling look for
+  native modules by path. Gradle paths in `packages/mobile/android` point at the root `node_modules`.

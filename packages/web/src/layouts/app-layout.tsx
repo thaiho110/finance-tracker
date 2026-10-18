@@ -111,7 +111,7 @@ export function AppLayout() {
           {/* Brand mark (plan/design/brand). The green tile is part of the SVG; alt="" because the name sits next to it. */}
           <img src="/mark.svg" alt="" className="size-9 shrink-0" />
           <div>
-            <span className="text-base font-semibold tracking-tight text-sidebar-foreground">Finance Tracker</span>
+            <span className="text-base font-semibold tracking-tight text-sidebar-foreground">Kept</span>
             <p className="-mt-0.5 text-[11px] text-text-muted">Personal Finance</p>
           </div>
         </div>

@@ -72,3 +72,34 @@ jobs:
             backend/build/reports/pmd/
             backend/build/reports/spotbugs/
           retention-days: 14
+
+  frontend:
+    name: Frontend (shared, web, desktop, mobile JS)
+    runs-on: ubuntu-24.04
+    env:
+      # The Electron binary isn't needed to build or type-check the desktop app.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4   # version from package.json "packageManager"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (shared → web, desktop)
+        run: pnpm build
+
+      - name: Test shared API client
+        run: pnpm --filter @finance-tracker/shared test
+
+      - name: Type-check and test mobile
+        run: |
+          pnpm --filter @finance-tracker/mobile type-check
+          pnpm --filter @finance-tracker/mobile test

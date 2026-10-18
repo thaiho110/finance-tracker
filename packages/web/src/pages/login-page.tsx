@@ -33,8 +33,7 @@ export default function LoginPage() {
 
     try {
       const data = await login({ email, password }).unwrap();
-      tokenStorage.setToken(data.token);
-      tokenStorage.setRefreshToken(data.refreshToken);
+      tokenStorage.setTokens(data.token, data.refreshToken);
       dispatch(setCredentials(data));
       toast.success('Signed in successfully');
       navigate('/dashboard', { replace: true });
