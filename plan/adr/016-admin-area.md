@@ -68,6 +68,20 @@ CREATE TABLE api_keys (
 - `ApiKeyAuthFilter`: hash the header, look up an active key, authenticate as the owning user with `ROLE_DEVICE`; unknown or revoked key → 401. `last_used_at` updated at most once a minute.
 - Until this ships, the filter is disabled (it only adds risk; no device client exists yet).
 
+### Device API keys — implementation note (2026-10-19)
+
+Built on `feature/deploy-hardening`. A correction to the premise above: there was **no `ApiKeyAuthFilter`** and no accept-any-key hole. `X-Api-Key` was used only by `RateLimitingFilter` for bucket scoping. Device keys are therefore a **new authentication path**, not a fix.
+
+As shipped:
+
+- **Table `device_api_keys`** (Flyway `V9`): `id, user_id (owner, ON DELETE CASCADE), label, key_hash (SHA-256, UNIQUE), created_at, created_by, last_used_at, revoked_at`. No `key_prefix` column (the raw key is shown once; the list identifies keys by `label` + owner). Entity/repo in the `auth` module; hashing reuses `common.security.SecretTokens` (`newToken()` / `hash()`).
+- **Key format** `ftk_` + a 32-byte URL-safe random token.
+- **`DeviceApiKeyAuthenticationFilter`** (in `auth.filter`) runs **after** `JwtAuthenticationFilter` and **before** `RateLimitingFilter` (so a device request is rate-limited by its owner, not by the key's hashcode). A bearer token always wins; an unknown/revoked/blank key leaves the request unauthenticated (→ 401), mirroring the JWT filter.
+- **Permission scope — decision: a device authenticates as its owner, but with a bounded, data-plane-only permission set** (`TRANSACTION_READ/WRITE`, `DASHBOARD_VIEW`, `CSV_IMPORT`, `RECEIPT_SCAN`, `CATEGORY_READ/WRITE`, `BUDGETS`), intersected with the owner's effective permissions (`AccessService`). Every administration/management permission is excluded, so a device key can **never** reach `/api/v1/admin/**` — even if the owner is an admin or super admin. This is the "limited principal" choice from the task, and keeps ownership (`created_by` = the owner's real id) intact. `last_used_at` is refreshed at most once a minute.
+- **Admin endpoints** `/api/v1/admin/device-keys`: `GET` (list, never the raw key) gated by `USER_READ`; `POST` (create, returns the raw key once) and `DELETE /{id}` (revoke, idempotent) gated by `USER_CREATE`. New audit actions `DEVICE_KEY_CREATED` / `DEVICE_KEY_REVOKED`.
+- **Web**: a "Device keys" section on the admin Settings page (label + owner picker, raw key shown once, list with status/last-used, revoke).
+- **Tests**: `DeviceApiKeyServiceTest` (unit) and `DeviceApiKeyIntegrationTest` (Testcontainers) cover valid / revoked / unknown keys, hash-only storage, and the admin-authority exclusion.
+
 ### Other tables
 
 ```sql
