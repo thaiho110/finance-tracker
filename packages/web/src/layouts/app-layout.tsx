@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import {
   LayoutDashboard,
   ArrowLeftRight,
+  PiggyBank,
   Upload,
   LogOut,
   Moon,
@@ -34,6 +35,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, anyOf: ['DASHBOARD_VIEW'] },
+  { to: '/budgets', label: 'Budgets', icon: PiggyBank, anyOf: ['BUDGETS'] },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight, anyOf: ['TRANSACTION_READ'] },
   { to: '/upload', label: 'Import', icon: Upload, anyOf: ['CSV_IMPORT', 'RECEIPT_SCAN'] },
   { to: '/settings/categories', label: 'Categories', icon: Tags, anyOf: ['CATEGORY_READ'] },
@@ -49,6 +51,7 @@ const adminItems: NavItem[] = [
 /** Map route paths to page titles for the top bar */
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
+  '/budgets': 'Budgets',
   '/transactions': 'Transactions',
   '/upload': 'Import',
   '/admin/users': 'Users',

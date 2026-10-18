@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from 'cn';
 
-const DOMAIN_ORDER = ['TRANSACTIONS', 'DASHBOARD', 'IMPORTS', 'CATEGORIES', 'ADMINISTRATION', 'MONITORING'];
+const DOMAIN_ORDER = ['TRANSACTIONS', 'DASHBOARD', 'IMPORTS', 'CATEGORIES', 'BUDGETS', 'ADMINISTRATION', 'MONITORING'];
 
 function KindTag({ kind }: { kind: PermissionInfo['kind'] }) {
   if (kind === 'FEATURE') {

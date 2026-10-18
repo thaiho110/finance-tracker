@@ -129,6 +129,68 @@ export interface Page<T> {
   size: number;
 }
 
+/* ───────── budgets & overview (ADR-019) ───────── */
+
+/** How a month's spending sits against its budget: amber (NEAR) at >= 80 %, red (OVER) at >= 100 %. */
+export type BudgetStatus = 'OK' | 'NEAR' | 'OVER';
+
+/** The total budget across all spending, with how much has been spent this month. */
+export interface TotalBudget {
+  amount: number;
+  spent: number;
+  status: BudgetStatus;
+}
+
+/** One expense category's spending in the overview month. */
+export interface OverviewCategory {
+  categoryId: string;
+  name: string;
+  color: string | null;
+  spent: number;
+  previousSpent: number;
+  /** The budget in force this month, or null when none is set. */
+  budget: number | null;
+  /** OK/NEAR/OVER, or null when there is no budget. */
+  status: BudgetStatus | null;
+}
+
+/** One month's overview. Budget fields are filled only when the user has the BUDGETS feature. */
+export interface Overview {
+  /** The month shown, `YYYY-MM`. */
+  month: string;
+  income: number;
+  expenses: number;
+  net: number;
+  previousIncome: number;
+  previousExpenses: number;
+  budgetsEnabled: boolean;
+  totalBudget: TotalBudget | null;
+  categories: OverviewCategory[];
+  topMerchants: { merchant: string; total: number; count: number }[];
+}
+
+/** One editable row on the Budgets page: a category (or the total) with its amount and recent spending. */
+export interface BudgetRow {
+  /** The category, or null for the total budget. */
+  categoryId: string | null;
+  name: string;
+  color: string | null;
+  /** The budget in force this month; 0 means no budget. */
+  amount: number;
+  spent: number;
+  previousSpent: number;
+}
+
+/** Set or clear a budget from a month on. */
+export interface BudgetInput {
+  /** The expense category, or omitted/null for the total budget. */
+  categoryId?: string | null;
+  /** The monthly amount in VND; 0 or omitted ends the budget. */
+  amount?: number | null;
+  /** The month it starts from, `YYYY-MM`; omitted means this month. */
+  month?: string;
+}
+
 /* ───────── imports ───────── */
 
 /** A CSV row drafted for review; null fields couldn't be read from the file. */

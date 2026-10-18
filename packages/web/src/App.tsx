@@ -13,6 +13,7 @@ import { HomeRedirect, RequirePermission } from '@/components/guards/require-per
 import LoginPage from '@/pages/login-page';
 import RegisterPage from '@/pages/register-page';
 import DashboardPage from '@/pages/dashboard-page';
+import BudgetsPage from '@/pages/budgets-page';
 import TransactionsPage from '@/pages/transactions-page';
 import TransactionDetailPage from '@/pages/transaction-detail-page';
 import UploadPage from '@/pages/upload-page';
@@ -93,6 +94,7 @@ export default function App() {
             }
           >
             <Route path="/dashboard" element={<RequirePermission permission="DASHBOARD_VIEW"><DashboardPage /></RequirePermission>} />
+            <Route path="/budgets" element={<RequirePermission permission="BUDGETS"><BudgetsPage /></RequirePermission>} />
             <Route path="/transactions" element={<RequirePermission permission="TRANSACTION_READ"><TransactionsPage /></RequirePermission>} />
             <Route
               path="/transactions/:id"

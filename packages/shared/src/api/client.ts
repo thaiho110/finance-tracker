@@ -1,5 +1,7 @@
 import type {
   AuthResponse,
+  BudgetInput,
+  BudgetRow,
   Category,
   CategoryChanges,
   CategoryDeleteResult,
@@ -10,6 +12,7 @@ import type {
   CategoryRuleSaveResult,
   ClientId,
   Credentials,
+  Overview,
   Page,
   ParsedReceipt,
   ParsedTransaction,
@@ -186,6 +189,21 @@ export class ApiClient {
     removeRule: async (id: string): Promise<void> => {
       await this.request({ url: `/categories/rules/${id}`, method: 'DELETE' });
     },
+  };
+
+  readonly overview = {
+    /** One month's overview; `month` is `YYYY-MM`, default the current month. Needs DASHBOARD_VIEW. */
+    get: (month?: string): Promise<Overview> =>
+      this.request({ url: '/overview', params: month ? { month } : undefined }),
+  };
+
+  readonly budgets = {
+    /** The total plus every pickable expense category with its budget and spend; `month` defaults to now. */
+    list: (month?: string): Promise<BudgetRow[]> =>
+      this.request({ url: '/budgets', params: month ? { month } : undefined }),
+    /** Sets or clears a budget from a month on; returns the rows for that month. */
+    set: (input: BudgetInput): Promise<BudgetRow[]> =>
+      this.request({ url: '/budgets', method: 'PUT', body: input }),
   };
 
   /* ───────── internals ───────── */

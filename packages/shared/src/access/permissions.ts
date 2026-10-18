@@ -8,6 +8,7 @@ export type Permission =
   | 'CATEGORY_READ'
   | 'CATEGORY_WRITE'
   | 'CATEGORY_ADMIN'
+  | 'BUDGETS'
   | 'USER_READ'
   | 'USER_SUSPEND'
   | 'USER_CREATE'
