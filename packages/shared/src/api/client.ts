@@ -1,7 +1,18 @@
 import type {
   AuthResponse,
+  BudgetInput,
+  BudgetRow,
+  Category,
+  CategoryChanges,
+  CategoryDeleteResult,
+  CategoryInput,
+  CategoryRule,
+  CategoryRuleInput,
+  CategoryRulePreview,
+  CategoryRuleSaveResult,
   ClientId,
   Credentials,
+  Overview,
   Page,
   ParsedReceipt,
   ParsedTransaction,
@@ -156,7 +167,43 @@ export class ApiClient {
   };
 
   readonly categories = {
-    list: (): Promise<string[]> => this.request({ url: '/categories' }),
+    /** Categories the user can pick; `includeArchived` also returns archived and hidden ones (settings). */
+    list: (includeArchived = false): Promise<Category[]> =>
+      this.request({ url: '/categories', params: includeArchived ? { includeArchived: true } : undefined }),
+    create: (input: CategoryInput): Promise<Category> =>
+      this.request({ url: '/categories', method: 'POST', body: input }),
+    update: (id: string, changes: CategoryChanges): Promise<Category> =>
+      this.request({ url: `/categories/${id}`, method: 'PUT', body: changes }),
+    /** Deletes an unused category or archives a used one; `moveTo` moves its transactions first. */
+    remove: (id: string, moveTo?: string): Promise<CategoryDeleteResult> =>
+      this.request({ url: `/categories/${id}`, method: 'DELETE', params: moveTo ? { moveTo } : undefined }),
+    setHidden: async (id: string, hidden: boolean): Promise<void> => {
+      await this.request({ url: `/categories/${id}/hide`, method: hidden ? 'POST' : 'DELETE' });
+    },
+    rules: (scope: 'own' | 'system' = 'own'): Promise<CategoryRule[]> =>
+      this.request({ url: '/categories/rules', params: { scope } }),
+    previewRule: (keyword: string): Promise<CategoryRulePreview> =>
+      this.request({ url: '/categories/rules/preview', params: { keyword } }),
+    saveRule: (input: CategoryRuleInput): Promise<CategoryRuleSaveResult> =>
+      this.request({ url: '/categories/rules', method: 'POST', body: input }),
+    removeRule: async (id: string): Promise<void> => {
+      await this.request({ url: `/categories/rules/${id}`, method: 'DELETE' });
+    },
+  };
+
+  readonly overview = {
+    /** One month's overview; `month` is `YYYY-MM`, default the current month. Needs DASHBOARD_VIEW. */
+    get: (month?: string): Promise<Overview> =>
+      this.request({ url: '/overview', params: month ? { month } : undefined }),
+  };
+
+  readonly budgets = {
+    /** The total plus every pickable expense category with its budget and spend; `month` defaults to now. */
+    list: (month?: string): Promise<BudgetRow[]> =>
+      this.request({ url: '/budgets', params: month ? { month } : undefined }),
+    /** Sets or clears a budget from a month on; returns the rows for that month. */
+    set: (input: BudgetInput): Promise<BudgetRow[]> =>
+      this.request({ url: '/budgets', method: 'PUT', body: input }),
   };
 
   /* ───────── internals ───────── */

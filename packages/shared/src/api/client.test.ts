@@ -32,12 +32,29 @@ describe('ApiClient', () => {
   it('adds the client id, bearer token and query string', async () => {
     const { client, fetchMock } = setup(async () => json(200, { content: [] }));
 
-    await client.transactions.list({ page: 0, category: 'Coffee', dateFrom: undefined });
+    await client.transactions.list({ page: 0, categoryId: 'c1', dateFrom: undefined });
 
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('http://api.test/api/v1/transactions?page=0&category=Coffee');
+    expect(url).toBe('http://api.test/api/v1/transactions?page=0&categoryId=c1');
     expect(header(init, 'X-Client-Id')).toBe('finance-tracker-mobile');
     expect(header(init, 'Authorization')).toBe('Bearer access-1');
+  });
+
+  it('calls the category endpoints with the right method and query', async () => {
+    const { client, fetchMock } = setup(async () => json(200, { outcome: 'ARCHIVED', moved: 2 }));
+
+    await client.categories.remove('pets', 'other');
+    await client.categories.setHidden('travel', true);
+    await client.categories.setHidden('travel', false);
+    await client.categories.previewRule('Highlands Coffee');
+
+    const calls = fetchMock.mock.calls.map(([url, init]) => `${init.method} ${url}`);
+    expect(calls).toEqual([
+      'DELETE http://api.test/api/v1/categories/pets?moveTo=other',
+      'POST http://api.test/api/v1/categories/travel/hide',
+      'DELETE http://api.test/api/v1/categories/travel/hide',
+      'GET http://api.test/api/v1/categories/rules/preview?keyword=Highlands%20Coffee',
+    ]);
   });
 
   it('refreshes once for concurrent 401s and retries with the new token', async () => {

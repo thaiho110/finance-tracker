@@ -1,12 +1,13 @@
 package com.financetracker.transaction.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
 /**
  * The fields a user can correct on a saved transaction. Where it came from (source type) and its
@@ -23,9 +24,18 @@ public record TransactionUpdateRequest(
     @Schema(example = "Bach Hoa Xanh")
     @NotBlank String cleanMerchant,
 
-    @Schema(description = "Amount, positive", example = "90000")
-    @NotNull @Positive BigDecimal amount,
+    @Schema(description = "Amount; negative means a refund", example = "90000")
+    @NotNull BigDecimal amount,
 
-    @Schema(example = "Groceries")
-    @NotBlank String category
-) { }
+    @Schema(description = "Category id; takes precedence over category", nullable = true)
+    UUID categoryId,
+
+    @Schema(description = "Category name, for older clients", example = "Groceries", nullable = true)
+    String category
+) {
+    @AssertTrue(message = "must not be zero")
+    @Schema(hidden = true)
+    public boolean isAmountNonZero() {
+        return amount == null || amount.signum() != 0;
+    }
+}

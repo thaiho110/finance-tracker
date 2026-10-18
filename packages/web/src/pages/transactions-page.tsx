@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowUpDown, Search, Trash2, Pencil, AlertCircle,
@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { useGetTransactionsQuery, useDeleteTransactionMutation, useUpdateTransactionMutation } from '@/store/api/transaction-api';
 import { useGetCategoriesQuery } from '@/store/api/category-api';
+import { CategorySelect } from '@/components/category/category-select';
+import { useAlwaysUsePrompt } from '@/components/category/use-always-use';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +27,9 @@ export default function TransactionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(25);
-  const [category, setCategory] = useState(searchParams.get('category') || '');
+  // ?categoryId=… (dashboard links), or ?category=<name> from older links, resolved once categories load
+  const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') || '');
+  const legacyCategoryName = searchParams.get('category');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [search, setSearch] = useState('');
@@ -34,8 +38,15 @@ export default function TransactionsPage() {
   const [editTx, setEditTx] = useState<any | null>(null);
   const [editForm, setEditForm] = useState<any>(null);
 
-  const { data, isLoading } = useGetTransactionsQuery({ page, size, category: category || undefined, dateFrom: dateFrom || undefined, dateTo: dateTo || undefined, sort });
+  const { data, isLoading } = useGetTransactionsQuery({ page, size, categoryId: categoryId || undefined, dateFrom: dateFrom || undefined, dateTo: dateTo || undefined, sort });
   const { data: categories = [] } = useGetCategoriesQuery();
+  const alwaysUse = useAlwaysUsePrompt();
+
+  useEffect(() => {
+    if (!legacyCategoryName || categoryId || categories.length === 0) return;
+    const match = categories.find((c) => c.name.toLowerCase() === legacyCategoryName.toLowerCase());
+    if (match) setCategoryId(match.id);
+  }, [legacyCategoryName, categoryId, categories]);
   const [deleteTransaction] = useDeleteTransactionMutation();
   const [updateTransaction, { isLoading: isSaving }] = useUpdateTransactionMutation();
   const navigate = useNavigate();
@@ -43,9 +54,9 @@ export default function TransactionsPage() {
   const transactions = data?.content || [];
   const totalPages = data?.totalPages || 0;
   const totalElements = data?.totalElements || 0;
-  const hasFilters = !!(category || dateFrom || dateTo || search);
+  const hasFilters = !!(categoryId || dateFrom || dateTo || search);
 
-  const clearFilters = () => { setCategory(''); setDateFrom(''); setDateTo(''); setSearch(''); setPage(0); };
+  const clearFilters = () => { setCategoryId(''); setSearchParams({}); setDateFrom(''); setDateTo(''); setSearch(''); setPage(0); };
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -55,10 +66,13 @@ export default function TransactionsPage() {
 
   const openEdit = (tx: any) => {
     setEditTx(tx);
-    setEditForm({ date: formatDateISO(tx.date), rawDescription: tx.rawDescription, cleanMerchant: tx.cleanMerchant, amount: tx.amount, category: tx.category });
+    setEditForm({
+      date: formatDateISO(tx.date), rawDescription: tx.rawDescription, cleanMerchant: tx.cleanMerchant,
+      amount: tx.amount, categoryId: tx.categoryId, category: tx.category, categoryColor: tx.categoryColor,
+    });
   };
 
-  const canSave = !!editForm && !!editForm.date && !!editForm.cleanMerchant?.trim() && editForm.amount > 0 && !!editForm.category;
+  const canSave = !!editForm && !!editForm.date && !!editForm.cleanMerchant?.trim() && editForm.amount > 0 && !!editForm.categoryId;
 
   const handleSave = async () => {
     if (!editTx || !editForm || !canSave) return;
@@ -71,11 +85,13 @@ export default function TransactionsPage() {
           rawDescription: editForm.rawDescription,
           cleanMerchant: editForm.cleanMerchant.trim(),
           amount: Math.abs(Number(editForm.amount) || 0),
-          category: editForm.category,
+          categoryId: editForm.categoryId,
         },
       }).unwrap();
+      const changedTo = editForm.categoryId !== editTx.categoryId ? categories.find((c) => c.id === editForm.categoryId) : undefined;
       setEditTx(null); setEditForm(null);
       toast.success('Transaction updated');
+      if (changedTo) alwaysUse(editForm.cleanMerchant, changedTo);
     } catch (err) { toast.error(apiErrorMessage(err, 'Failed to update')); }
   };
 
@@ -97,10 +113,12 @@ export default function TransactionsPage() {
       <div className="flex flex-wrap items-end gap-3 rounded-[12px] border border-border-default bg-bg-surface p-4">
         <div className="flex flex-col gap-1.5">
           <label className="field-label">Category</label>
-          <Select value={category} onValueChange={(v) => { setCategory(v); setPage(0); }}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="All categories" /></SelectTrigger>
+          <Select value={categoryId} onValueChange={(v) => { setCategoryId(v); setPage(0); }}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="All categories" /></SelectTrigger>
             <SelectContent>
-              {categories.map((c: string) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {categories.map((c) => (
+                <SelectItem key={c.id} value={c.id}><CategoryBadge category={c.name} color={c.color} /></SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -183,7 +201,7 @@ export default function TransactionsPage() {
                 <TableCell className="font-medium text-text-default">{tx.cleanMerchant}</TableCell>
                 <TableCell className="max-w-48 truncate text-sm text-text-muted" title={tx.rawDescription}>{tx.rawDescription}</TableCell>
                 <TableCell className="text-mono text-right text-sm font-semibold tabular-nums text-text-default">{formatCurrencyFull(tx.amount)}</TableCell>
-                <TableCell><CategoryBadge category={tx.category} /></TableCell>
+                <TableCell><CategoryBadge category={tx.category} color={tx.categoryColor} /></TableCell>
                 <TableCell>
                   <span className="inline-flex items-center rounded-full bg-bg-muted px-2.5 py-0.5 text-xs font-medium text-text-muted uppercase tracking-wider">{tx.sourceType}</span>
                 </TableCell>
@@ -264,12 +282,12 @@ export default function TransactionsPage() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="field-label">Category</Label>
-                <Select value={editForm.category} onValueChange={(v) => setEditForm({ ...editForm, category: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c: string) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <CategorySelect
+                  value={editForm.categoryId}
+                  categories={categories}
+                  current={{ id: editTx.categoryId, name: editTx.category, color: editTx.categoryColor }}
+                  onChange={(c) => setEditForm({ ...editForm, categoryId: c.id, category: c.name })}
+                />
               </div>
             </div>
           )}

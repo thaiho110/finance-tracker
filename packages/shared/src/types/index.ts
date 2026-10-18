@@ -57,8 +57,13 @@ export interface Transaction {
   date: string;
   rawDescription: string;
   cleanMerchant: string;
+  /** How it counts comes from the category's kind; a negative amount is a refund. */
   amount: number;
+  /** Category name, for display. */
   category: string;
+  categoryId: string;
+  categoryKind: CategoryKind;
+  categoryColor: string | null;
   sourceType: SourceType;
   clientId: string | null;
   isDuplicate: boolean;
@@ -77,7 +82,10 @@ export interface TransactionRequest {
   rawDescription: string;
   cleanMerchant: string;
   amount: number;
-  category: string;
+  /** Preferred. */
+  categoryId?: string;
+  /** Name, for older callers; an unknown name creates one of the user's own categories. */
+  category?: string;
   sourceType: SourceType;
   lineItems?: ReceiptLineItem[];
 }
@@ -88,14 +96,15 @@ export interface TransactionUpdateRequest {
   rawDescription?: string;
   cleanMerchant: string;
   amount: number;
-  category: string;
+  categoryId?: string;
+  category?: string;
 }
 
 export interface TransactionFilter {
   page?: number;
   size?: number;
   sort?: string;
-  category?: string;
+  categoryId?: string;
   dateFrom?: string;
   dateTo?: string;
 }
@@ -105,7 +114,9 @@ export interface TransactionSummary {
   totalIncome: number;
   transactionCount: number;
   averageTransaction: number;
-  categoryBreakdown: { category: string; total: number }[];
+  /** Expense and income categories (transfers excluded), largest first. */
+  categoryBreakdown: { category: string; total: number; categoryId: string; kind: CategoryKind; color: string | null }[];
+  /** Spending (expense categories) per month. */
   monthlyTrend: { month: string; total: number }[];
   recentTransactions: Transaction[];
 }
@@ -118,6 +129,68 @@ export interface Page<T> {
   size: number;
 }
 
+/* ───────── budgets & overview (ADR-019) ───────── */
+
+/** How a month's spending sits against its budget: amber (NEAR) at >= 80 %, red (OVER) at >= 100 %. */
+export type BudgetStatus = 'OK' | 'NEAR' | 'OVER';
+
+/** The total budget across all spending, with how much has been spent this month. */
+export interface TotalBudget {
+  amount: number;
+  spent: number;
+  status: BudgetStatus;
+}
+
+/** One expense category's spending in the overview month. */
+export interface OverviewCategory {
+  categoryId: string;
+  name: string;
+  color: string | null;
+  spent: number;
+  previousSpent: number;
+  /** The budget in force this month, or null when none is set. */
+  budget: number | null;
+  /** OK/NEAR/OVER, or null when there is no budget. */
+  status: BudgetStatus | null;
+}
+
+/** One month's overview. Budget fields are filled only when the user has the BUDGETS feature. */
+export interface Overview {
+  /** The month shown, `YYYY-MM`. */
+  month: string;
+  income: number;
+  expenses: number;
+  net: number;
+  previousIncome: number;
+  previousExpenses: number;
+  budgetsEnabled: boolean;
+  totalBudget: TotalBudget | null;
+  categories: OverviewCategory[];
+  topMerchants: { merchant: string; total: number; count: number }[];
+}
+
+/** One editable row on the Budgets page: a category (or the total) with its amount and recent spending. */
+export interface BudgetRow {
+  /** The category, or null for the total budget. */
+  categoryId: string | null;
+  name: string;
+  color: string | null;
+  /** The budget in force this month; 0 means no budget. */
+  amount: number;
+  spent: number;
+  previousSpent: number;
+}
+
+/** Set or clear a budget from a month on. */
+export interface BudgetInput {
+  /** The expense category, or omitted/null for the total budget. */
+  categoryId?: string | null;
+  /** The monthly amount in VND; 0 or omitted ends the budget. */
+  amount?: number | null;
+  /** The month it starts from, `YYYY-MM`; omitted means this month. */
+  month?: string;
+}
+
 /* ───────── imports ───────── */
 
 /** A CSV row drafted for review; null fields couldn't be read from the file. */
@@ -127,6 +200,7 @@ export interface ParsedTransaction {
   rawDescription: string | null;
   cleanMerchant: string;
   amount: number | null;
+  categoryId: string;
   category: string;
   isDuplicate: boolean;
 }
@@ -135,9 +209,76 @@ export interface ParsedReceipt {
   merchant: string | null;
   date: string | null;
   totalAmount: number | null;
+  categoryId: string;
   category: string;
   isDuplicate: boolean;
   lineItems: ReceiptLineItem[];
   /** Codes such as TOTAL_GUESSED, DATE_NOT_FOUND. */
   warnings: string[];
+}
+
+/* ───────── categories (ADR-015) ───────── */
+
+/** EXPENSE counts as spending, INCOME as income, TRANSFER (between own accounts) in no total. */
+export type CategoryKind = 'EXPENSE' | 'INCOME' | 'TRANSFER';
+
+export interface Category {
+  id: string;
+  name: string;
+  kind: CategoryKind;
+  color: string | null;
+  icon: string | null;
+  /** A default shared by everyone; only admins change it. */
+  system: boolean;
+  archived: boolean;
+  /** A default this user hid. */
+  hidden: boolean;
+}
+
+export interface CategoryInput {
+  name: string;
+  kind?: CategoryKind;
+  color?: string | null;
+  icon?: string | null;
+}
+
+/** Null or missing fields stay unchanged. */
+export interface CategoryChanges {
+  name?: string;
+  kind?: CategoryKind;
+  color?: string;
+  icon?: string;
+  archived?: boolean;
+}
+
+export interface CategoryDeleteResult {
+  outcome: 'DELETED' | 'ARCHIVED';
+  moved: number;
+}
+
+export interface CategoryRule {
+  id: string;
+  /** Stored normalized: upper case, no accents. */
+  keyword: string;
+  categoryId: string;
+  categoryName: string | null;
+  system: boolean;
+}
+
+export interface CategoryRuleInput {
+  keyword: string;
+  categoryId: string;
+  /** Also move past transactions still in Other whose merchant matches. */
+  applyToPast?: boolean;
+}
+
+export interface CategoryRuleSaveResult {
+  rule: CategoryRule;
+  moved: number;
+}
+
+export interface CategoryRulePreview {
+  keyword: string;
+  /** Past transactions still in Other that the keyword would move. */
+  matching: number;
 }

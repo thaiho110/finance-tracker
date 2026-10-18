@@ -2,7 +2,7 @@ import { api } from '../api-slice';
 
 export const transactionApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getTransactions: builder.query<any, { page?: number; size?: number; category?: string; dateFrom?: string; dateTo?: string; sort?: string }>({
+    getTransactions: builder.query<any, { page?: number; size?: number; categoryId?: string; dateFrom?: string; dateTo?: string; sort?: string }>({
       query: (params) => ({
         url: '/transactions',
         params,

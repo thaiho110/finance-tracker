@@ -22,7 +22,10 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import static com.financetracker.access.model.Permission.AUDIT_READ;
+import static com.financetracker.access.model.Permission.BUDGETS;
+import static com.financetracker.access.model.Permission.CATEGORY_ADMIN;
 import static com.financetracker.access.model.Permission.CATEGORY_READ;
+import static com.financetracker.access.model.Permission.CATEGORY_WRITE;
 import static com.financetracker.access.model.Permission.CSV_IMPORT;
 import static com.financetracker.access.model.Permission.DASHBOARD_VIEW;
 import static com.financetracker.access.model.Permission.FEATURE_MANAGE;
@@ -42,26 +45,19 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final RateLimitingFilter rateLimitingFilter;
-    private final com.financetracker.auth.config.UserDetailsConfig userDetailsService;
+    private final UserDetailsConfig userDetailsService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(request -> {
-                var corsConfig = new org.springframework.web.cors.CorsConfiguration();
-                corsConfig.setAllowedOrigins(java.util.List.of(
-                    "http://localhost:5173", "http://localhost:3000",
-                    "capacitor://localhost", "file://"));
-                corsConfig.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                corsConfig.setAllowedHeaders(java.util.List.of("*"));
-                corsConfig.setExposedHeaders(java.util.List.of("X-RateLimit-Remaining", "Sunset"));
-                corsConfig.setAllowCredentials(true);
-                return corsConfig;
-            }))
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/me").authenticated()
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                // Spring Boot forwards errors (including 403 from the rules below) to /error; if /error itself
+                // required a login, every "forbidden" would reach the client as 401 and look like an expired session.
+                .requestMatchers("/error").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
 
@@ -73,6 +69,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/transactions/**").hasAuthority(TRANSACTION_READ.name())
                 .requestMatchers("/api/v1/transactions/**").hasAuthority(TRANSACTION_WRITE.name())
                 .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").hasAuthority(CATEGORY_READ.name())
+                .requestMatchers("/api/v1/categories/**").hasAuthority(CATEGORY_WRITE.name())
+                .requestMatchers("/api/v1/overview/**").hasAuthority(DASHBOARD_VIEW.name())
+                .requestMatchers("/api/v1/budgets/**").hasAuthority(BUDGETS.name())
 
                 // Administration
                 .requestMatchers("/api/v1/admin/users/*/features/**").hasAuthority(FEATURE_MANAGE.name())
@@ -83,6 +82,12 @@ public class SecurityConfig {
                     .hasAuthority(USER_READ.name())
                 .requestMatchers("/api/v1/admin/roles/**").hasAuthority(ROLE_MANAGE.name())
                 .requestMatchers(HttpMethod.GET, "/api/v1/admin/audit/**").hasAuthority(AUDIT_READ.name())
+                .requestMatchers("/api/v1/admin/categories/**").hasAuthority(CATEGORY_ADMIN.name())
+                // Registration mode (ADR-016): read with USER_READ, change with ROLE_MANAGE; invites with USER_CREATE.
+                .requestMatchers(HttpMethod.GET, "/api/v1/admin/registration").hasAuthority(USER_READ.name())
+                .requestMatchers("/api/v1/admin/registration").hasAuthority(ROLE_MANAGE.name())
+                .requestMatchers(HttpMethod.GET, "/api/v1/admin/invites").hasAuthority(USER_READ.name())
+                .requestMatchers("/api/v1/admin/invites/**").hasAuthority(USER_CREATE.name())
                 .requestMatchers("/api/v1/admin/**").denyAll()
 
                 .anyRequest().authenticated()
@@ -94,6 +99,21 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class)
             .build();
+    }
+
+    /** CORS for the web, desktop and mobile clients; credentials are allowed so the bearer token can be sent. */
+    private org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+        return request -> {
+            var corsConfig = new org.springframework.web.cors.CorsConfiguration();
+            corsConfig.setAllowedOrigins(java.util.List.of(
+                "http://localhost:5173", "http://localhost:3000",
+                "capacitor://localhost", "file://"));
+            corsConfig.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+            corsConfig.setAllowedHeaders(java.util.List.of("*"));
+            corsConfig.setExposedHeaders(java.util.List.of("X-RateLimit-Remaining", "Sunset"));
+            corsConfig.setAllowCredentials(true);
+            return corsConfig;
+        };
     }
 
     @Bean

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate, Link, Navigate } from 'react-router-dom';
+import { useNavigate, Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRegisterMutation } from '@/store/api/auth-api';
 import { setCredentials } from '@/store/auth-slice';
@@ -37,6 +37,8 @@ export default function RegisterPage() {
   const [register, { isLoading }] = useRegisterMutation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite') ?? undefined;
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
 
   const strength = useMemo(() => getStrength(password), [password]);
@@ -68,7 +70,7 @@ export default function RegisterPage() {
     if (!validate()) return;
 
     try {
-      const data = await register({ email, password }).unwrap();
+      const data = await register({ email, password, inviteToken }).unwrap();
       tokenStorage.setTokens(data.token, data.refreshToken);
       dispatch(setCredentials(data));
       toast.success('Account created successfully!');

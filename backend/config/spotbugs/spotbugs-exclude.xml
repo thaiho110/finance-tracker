@@ -16,19 +16,13 @@
         <Source name="~.*Application\.java"/>
     </Match>
 
-    <!-- EI_EXPOSE_REP2: False positives for Spring-injected dependencies (singleton beans) -->
+    <!-- EI_EXPOSE_REP2: SpotBugs flags every constructor that stores an injected bean. The whole backend
+         wires its collaborators through constructor injection (Lombok @RequiredArgsConstructor), and those
+         beans are shared singletons by design, so this pattern is noise across the codebase. A per-class
+         allowlist drifted out of date as features were added; exclude it project-wide instead. -->
     <Match>
         <Bug pattern="EI_EXPOSE_REP2"/>
-        <Or>
-            <Class name="com.financetracker.auth.config.SecurityConfig"/>
-            <Class name="com.financetracker.transaction.service.TransactionService"/>
-            <Class name="com.financetracker.transaction.api.TransactionController"/>
-            <Class name="com.financetracker.common.config.rate_limiting.InMemoryRateLimiter"/>
-            <Class name="com.financetracker.ocr.service.OcrService"/>
-            <Class name="com.financetracker.ocr.api.OcrController"/>
-            <Class name="com.financetracker.access.service.AccessService"/>
-            <Class name="com.financetracker.admin.config.SuperAdminBootstrap"/>
-        </Or>
+        <Package name="~com\.financetracker\..*"/>
     </Match>
 
     <!-- EI_EXPOSE_REP: False positives for Spring-injected beans stored as fields -->
@@ -45,5 +39,12 @@
             <Bug pattern="EI_EXPOSE_REP2"/>
         </Or>
         <Class name="com.financetracker.ocr.config.OcrProperties"/>
+    </Match>
+
+    <!-- JPA entities: Hibernate populates mapped columns by reflection, so SpotBugs cannot see the write and
+         reports otherwise-read fields (e.g. Role.description, read in RoleResponse) as never written. -->
+    <Match>
+        <Bug pattern="UWF_UNWRITTEN_FIELD"/>
+        <Package name="~com\.financetracker\..*\.model"/>
     </Match>
 </FindBugsFilter>

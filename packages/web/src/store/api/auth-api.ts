@@ -13,7 +13,7 @@ export const authApi = api.injectEndpoints({
         body,
       }),
     }),
-    register: builder.mutation<{ token: string; refreshToken: string; email: string; role: string; permissions: string[] }, { email: string; password: string }>({
+    register: builder.mutation<{ token: string; refreshToken: string; email: string; role: string; permissions: string[] }, { email: string; password: string; inviteToken?: string }>({
       query: (body) => ({
         url: '/auth/register',
         method: 'POST',

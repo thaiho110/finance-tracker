@@ -34,6 +34,12 @@ public class AuthController {
         return ResponseEntity.ok(authService.register(request));
     }
 
+    @GetMapping("/registration-mode")
+    @Operation(summary = "The current registration mode (OPEN, INVITE_ONLY or CLOSED), so clients can adapt sign-up")
+    public ResponseEntity<java.util.Map<String, String>> registrationMode() {
+        return ResponseEntity.ok(java.util.Map.of("mode", authService.registrationMode().name()));
+    }
+
     @PostMapping("/login")
     @Operation(summary = "Authenticate user and return JWT tokens")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {

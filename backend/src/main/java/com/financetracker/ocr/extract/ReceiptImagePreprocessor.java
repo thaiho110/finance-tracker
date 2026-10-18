@@ -59,7 +59,7 @@ public final class ReceiptImagePreprocessor {
         int height = gray.getHeight();
         double scale = (double) TARGET_WIDTH / width;
         scale = Math.min(scale, (double) MAX_LONG_EDGE / Math.max(width, height));
-        scale = Math.min(scale, Math.sqrt((double) MAX_PIXELS / ((double) width * height)));
+        scale = Math.min(scale, Math.sqrt(MAX_PIXELS / ((double) width * height)));
         int newWidth = Math.max(1, (int) Math.round(width * scale));
         int newHeight = Math.max(1, (int) Math.round(height * scale));
         if (newWidth == width && newHeight == height) {
@@ -213,7 +213,7 @@ public final class ReceiptImagePreprocessor {
                 long area = (long) (x1 - x0 + 1) * (y1 - y0 + 1);
                 long sum = (long) integral[(y1 + 1) * (width + 1) + x1 + 1] - integral[y0 * (width + 1) + x1 + 1]
                     - integral[(y1 + 1) * (width + 1) + x0] + integral[y0 * (width + 1) + x0];
-                boolean ink = (long) (in[y * width + x] & BYTE_MASK) * area < sum * (1.0 - THRESHOLD_SENSITIVITY);
+                boolean ink = (in[y * width + x] & BYTE_MASK) * area < sum * (1.0 - THRESHOLD_SENSITIVITY);
                 out[y * width + x] = (byte) (ink ? 0 : WHITE);
             }
         }

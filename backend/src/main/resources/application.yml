@@ -60,6 +60,15 @@ management:
       probability: 1.0
     enabled: true
 
+# ── API docs ──
+# Swagger UI and the OpenAPI JSON are off by default and turned on only in the dev profile, so a
+# production deployment never exposes the API surface or the "try it out" console (deploy hardening).
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 # ── Logging ──
 logging:
   level:
@@ -131,6 +140,18 @@ spring:
 
   flyway:
     enabled: true
+
+# Swagger UI and /v3/api-docs are available only in the dev profile.
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+# Local signups stay open regardless of the stored registration mode (ADR-016).
+app:
+  registration:
+    forced-mode: OPEN
 
 logging:
   level:

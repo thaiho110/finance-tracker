@@ -4,6 +4,7 @@ export type TransactionsStackParams = {
 };
 
 export type TabParams = {
+  Overview: undefined;
   Transactions: undefined;
   Scan: undefined;
   Import: undefined;

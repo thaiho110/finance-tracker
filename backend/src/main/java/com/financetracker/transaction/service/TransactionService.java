@@ -1,8 +1,13 @@
 package com.financetracker.transaction.service;
 
+import com.financetracker.category.model.CategoryKind;
+import com.financetracker.category.model.CategoryRef;
+import com.financetracker.category.service.CategoryService;
 import com.financetracker.common.exception.EntityNotFoundException;
 import com.financetracker.transaction.dto.TransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
+import com.financetracker.transaction.dto.TransactionSummaryResponse;
+import com.financetracker.transaction.dto.TransactionUpdateRequest;
 import com.financetracker.transaction.model.ReceiptItem;
 import com.financetracker.transaction.model.SourceType;
 import com.financetracker.transaction.model.Transaction;
@@ -11,25 +16,37 @@ import com.financetracker.transaction.repository.TransactionRepository;
 import io.micrometer.core.instrument.Counter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.financetracker.transaction.dto.TransactionSummaryResponse;
-import com.financetracker.transaction.dto.TransactionUpdateRequest;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class TransactionService {
 
+    private static final int RECENT_COUNT = 5;
+    /** Columns of {@code categoryBreakdownNative}: id, name, kind, color, total. */
+    private static final int COL_ID = 0;
+    private static final int COL_NAME = 1;
+    private static final int COL_KIND = 2;
+    private static final int COL_COLOR = 3;
+    private static final int COL_TOTAL = 4;
+
     private final TransactionRepository transactionRepository;
     private final ReceiptItemRepository receiptItemRepository;
+    private final CategoryService categoryService;
     private final Counter transactionsCreated;
 
     @Transactional
@@ -40,7 +57,7 @@ public class TransactionService {
                 .rawDescription(req.rawDescription())
                 .cleanMerchant(req.cleanMerchant())
                 .amount(req.amount())
-                .category(req.category())
+                .categoryId(categoryService.resolveForTransaction(userId, req.categoryId(), req.category()).id())
                 .sourceType(SourceType.valueOf(req.sourceType()))
                 .clientId(clientId)
                 .isDuplicate(false)
@@ -52,7 +69,7 @@ public class TransactionService {
         transactionsCreated.increment(saved.size());
         saveReceiptItems(requests, saved);
 
-        return saved.stream().map(this::toResponse).toList();
+        return toResponses(saved);
     }
 
     /** Stores receipt line items for OCR transactions; {@code saved} is in the same order as {@code requests}. */
@@ -76,12 +93,23 @@ public class TransactionService {
     }
 
     /** The user's transactions; every filter is optional and they combine (category and date range together). */
-    public Page<TransactionResponse> findAll(UUID userId, String category, LocalDate dateFrom, LocalDate dateTo, Pageable pageable) {
-        return transactionRepository.findByFilters(userId, category, dateFrom, dateTo, pageable).map(this::toResponse);
+    public Page<TransactionResponse> findAll(UUID userId, UUID categoryId, LocalDate dateFrom, LocalDate dateTo, Pageable pageable) {
+        Page<Transaction> page = transactionRepository.findByFilters(userId, categoryId, dateFrom, dateTo, pageable);
+        Map<UUID, CategoryRef> refs = categoryService.refs(categoryIds(page.getContent()));
+        return page.map(t -> toResponse(t, refs));
+    }
+
+    /** Category id for the legacy {@code ?category=<name>} filter: one of the user's visible categories, or none. */
+    public UUID categoryIdByName(UUID userId, String name) {
+        return categoryService.list(userId, true).stream()
+            .filter(c -> c.name().equalsIgnoreCase(name.strip()))
+            .map(c -> c.id())
+            .findFirst()
+            .orElse(null);
     }
 
     public TransactionResponse findById(UUID id, UUID userId) {
-        return toResponse(owned(id, userId));
+        return toResponses(List.of(owned(id, userId))).get(0);
     }
 
     @Transactional
@@ -95,10 +123,9 @@ public class TransactionService {
         transaction.setRawDescription(description);
         transaction.setCleanMerchant(merchant);
         transaction.setAmount(request.amount());
-        transaction.setCategory(request.category());
+        transaction.setCategoryId(categoryService.resolveForTransaction(userId, request.categoryId(), request.category()).id());
 
-        Transaction saved = transactionRepository.save(transaction);
-        return toResponse(saved);
+        return toResponses(List.of(transactionRepository.save(transaction))).get(0);
     }
 
     @Transactional
@@ -113,58 +140,42 @@ public class TransactionService {
         return transactionRepository.countByCreatedBy(userId);
     }
 
-    public List<String> getCategories(UUID userId) {
-        return transactionRepository.findDistinctCategoriesByCreatedBy(userId);
-    }
-
+    /**
+     * Totals for the dashboard. A transaction counts by its category's kind (ADR-015, amended): expense
+     * categories add to spending, income categories to income, transfers to neither. Amounts are summed
+     * as stored, so a refund (negative amount) in an expense category lowers spending.
+     */
     public TransactionSummaryResponse getSummary(UUID userId) {
-        // Category breakdown
-        List<Object[]> categoryRows = transactionRepository.categoryBreakdownNative(userId);
         List<TransactionSummaryResponse.CategoryBreakdown> categoryBreakdown = new ArrayList<>();
         BigDecimal totalExpenses = BigDecimal.ZERO;
         BigDecimal totalIncome = BigDecimal.ZERO;
 
-        for (Object[] row : categoryRows) {
-            String category = (String) row[0];
-            BigDecimal total = (BigDecimal) row[1];
-            categoryBreakdown.add(new TransactionSummaryResponse.CategoryBreakdown(category, total));
-            if (total.compareTo(BigDecimal.ZERO) < 0) {
+        for (Object[] row : transactionRepository.categoryBreakdownNative(userId)) {
+            CategoryKind kind = CategoryKind.valueOf((String) row[COL_KIND]);
+            BigDecimal total = (BigDecimal) row[COL_TOTAL];
+            categoryBreakdown.add(new TransactionSummaryResponse.CategoryBreakdown(
+                (String) row[COL_NAME], total, (UUID) row[COL_ID], kind.name(), (String) row[COL_COLOR]));
+            if (kind == CategoryKind.EXPENSE) {
                 totalExpenses = totalExpenses.add(total);
-            } else {
+            } else if (kind == CategoryKind.INCOME) {
                 totalIncome = totalIncome.add(total);
             }
         }
 
-        // Monthly trend
-        List<Object[]> monthlyRows = transactionRepository.monthlyTrendNative(userId);
-        List<TransactionSummaryResponse.MonthlyTrend> monthlyTrend = new ArrayList<>();
-        for (Object[] row : monthlyRows) {
-            String month = (String) row[0];
-            BigDecimal total = (BigDecimal) row[1];
-            monthlyTrend.add(new TransactionSummaryResponse.MonthlyTrend(month, total));
-        }
+        List<TransactionSummaryResponse.MonthlyTrend> monthlyTrend = transactionRepository.monthlyTrendNative(userId).stream()
+            .map(row -> new TransactionSummaryResponse.MonthlyTrend((String) row[0], (BigDecimal) row[1]))
+            .toList();
 
-        // Recent transactions
-        List<Transaction> recent = transactionRepository.findRecentByCreatedBy(userId,
-            org.springframework.data.domain.PageRequest.of(0, 5));
-        List<TransactionResponse> recentTransactions = recent.stream().map(this::toResponse).toList();
+        List<TransactionResponse> recentTransactions = toResponses(
+            transactionRepository.findRecentByCreatedBy(userId, PageRequest.of(0, RECENT_COUNT)));
 
-        // Count and average
         long count = transactionRepository.countByCreatedBy(userId);
-        BigDecimal totalAll = totalExpenses.add(totalIncome);
         BigDecimal average = count > 0
-            ? totalAll.divide(BigDecimal.valueOf(count), 2, java.math.RoundingMode.HALF_UP)
+            ? totalExpenses.add(totalIncome).divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP)
             : BigDecimal.ZERO;
 
-        return new TransactionSummaryResponse(
-            totalExpenses.abs(),
-            totalIncome,
-            count,
-            average,
-            Collections.unmodifiableList(categoryBreakdown),
-            Collections.unmodifiableList(monthlyTrend),
-            Collections.unmodifiableList(recentTransactions)
-        );
+        return new TransactionSummaryResponse(totalExpenses, totalIncome, count, average,
+            categoryBreakdown, monthlyTrend, recentTransactions);
     }
 
     /**
@@ -176,18 +187,31 @@ public class TransactionService {
             .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + id));
     }
 
-    private TransactionResponse toResponse(Transaction t) {
+    private static Set<UUID> categoryIds(List<Transaction> transactions) {
+        return transactions.stream().map(Transaction::getCategoryId).collect(Collectors.toSet());
+    }
+
+    private List<TransactionResponse> toResponses(List<Transaction> transactions) {
+        Map<UUID, CategoryRef> refs = categoryService.refs(categoryIds(transactions));
+        return transactions.stream().map(t -> toResponse(t, refs)).toList();
+    }
+
+    private TransactionResponse toResponse(Transaction t, Map<UUID, CategoryRef> refs) {
         List<TransactionResponse.ReceiptItemResponse> items = receiptItemRepository
             .findByTransactionId(t.getId())
             .stream()
             .map(item -> new TransactionResponse.ReceiptItemResponse(item.getId(), item.getItemDescription(), item.getPrice()))
             .toList();
+        CategoryRef category = refs.get(t.getCategoryId());
 
         return new TransactionResponse(
-            t.getId(), t.getDate(), t.getRawDescription(), t.getCleanMerchant(),
-            t.getAmount(), t.getCategory(), t.getSourceType().name(),
-            t.getClientId(), t.isDuplicate(),
-            t.getCreatedAt() != null ? t.getCreatedAt().atOffset(java.time.ZoneOffset.UTC).toLocalDateTime() : null,
+            t.getId(), t.getDate(), t.getRawDescription(), t.getCleanMerchant(), t.getAmount(),
+            category == null ? null : category.name(),
+            t.getCategoryId(),
+            category == null ? null : category.kind().name(),
+            category == null ? null : category.color(),
+            t.getSourceType().name(), t.getClientId(), t.isDuplicate(),
+            t.getCreatedAt() != null ? t.getCreatedAt().atOffset(ZoneOffset.UTC).toLocalDateTime() : null,
             items);
     }
 }

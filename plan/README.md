@@ -721,11 +721,12 @@ volumes:
 
 | Phase | Deliverables | ADR |
 |-------|-------------|-----|
-| **Phase 13: Categories** | `categories` + `category_rules` tables (V4), user > system matching with word boundaries, category CRUD + rules API, "+ New category" in pickers, "Always use…" prompt, Settings → Categories, Vietnamese seed | ADR-015 |
+| **Phase 13: Categories** ✅ | `categories` + `category_rules` tables (V5), user > system matching with word boundaries, category CRUD + rules API, "+ New category" in pickers, "Always use…" prompt, Settings → Categories, Vietnamese seed | ADR-015 |
+| **Phase 13b: Budgets + Overview** ✅ | `budgets` table (V6), `BUDGETS` feature, monthly overview (`/api/v1/overview`) and budgets API (`/api/v1/budgets`), server-computed OK/NEAR/OVER warnings, web dashboard-as-overview + Budgets page, mobile Overview tab | ADR-019 |
 | **Phase 14: Admin** | Fix user id (real `users.id`), roles + `APP_ADMIN_EMAIL` bootstrap, disable users, registration modes + invites, hashed device API keys (replaces accept-any-key filter), system categories, status page, audit log | ADR-016 |
 | **Phase 15: nginx + URLs** | Web image, nginx as the only published port, `finance.localhost` + `grafana.finance.localhost`, forwarded headers, single CORS config, Grafana login | ADR-017 |
 
-Done so far: 14a, most of 14 (as ADR-018), 9, 11, 12. Next: 15 → 13 → rest of 14. The two security fixes come first because ADR-017 makes the app reachable by URL.
+Done so far: 14a, most of 14 (as ADR-018), 9, 11, 12, 13, 13b (budgets + monthly overview, ADR-019). Next: rest of 14 (registration modes, hashed device keys, backups, integration tests) → 15. The security fixes in 14 come before 15 because ADR-017 makes the app reachable by URL.
 
 
 ---

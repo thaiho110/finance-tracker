@@ -94,10 +94,11 @@ class AccessServiceTest {
         List<FeatureState> features = accessService.features(userId, Role.USER);
 
         assertThat(features).extracting(FeatureState::permission)
-            .containsExactly(Permission.DASHBOARD_VIEW, Permission.CSV_IMPORT, Permission.RECEIPT_SCAN);
+            .containsExactly(Permission.DASHBOARD_VIEW, Permission.CSV_IMPORT, Permission.RECEIPT_SCAN, Permission.BUDGETS);
         assertThat(features.get(0)).isEqualTo(new FeatureState(Permission.DASHBOARD_VIEW, false, null, false));
         assertThat(features.get(1)).isEqualTo(new FeatureState(Permission.CSV_IMPORT, true, false, false));
         assertThat(features.get(2)).isEqualTo(new FeatureState(Permission.RECEIPT_SCAN, true, null, true));
+        assertThat(features.get(3)).isEqualTo(new FeatureState(Permission.BUDGETS, false, null, false));
     }
 
     @Test

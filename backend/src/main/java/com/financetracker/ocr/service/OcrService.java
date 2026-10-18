@@ -152,12 +152,10 @@ public class OcrService {
 
         if (receipt.total() == null) {
             String retryText = ocrEngine.recognize(image, ReceiptOcrEngine.Layout.FALLBACK);
-            if (retryText != null) {
-                ExtractedReceipt retry = parse(retryText, knownMerchants);
-                if (fieldsFound(retry) > fieldsFound(receipt)) {
-                    receipt = retry;
-                    text = retryText;
-                }
+            ExtractedReceipt retry = retryText == null ? null : parse(retryText, knownMerchants);
+            if (retry != null && fieldsFound(retry) > fieldsFound(receipt)) {
+                receipt = retry;
+                text = retryText;
             }
         }
 
@@ -199,7 +197,7 @@ public class OcrService {
             .map(item -> new ParsedReceiptResponse.LineItem(item.item(), item.price()))
             .toList();
         return new ParsedReceiptResponse(receipt.merchant(), receipt.date(), receipt.total(),
-            draft.category(), draft.duplicate(), lineItems, receipt.warnings());
+            draft.category().id(), draft.category().name(), draft.duplicate(), lineItems, receipt.warnings());
     }
 
     private void recordFields(ExtractedReceipt receipt) {

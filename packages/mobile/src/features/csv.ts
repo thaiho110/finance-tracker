@@ -14,7 +14,7 @@ export function rowsToTransactions(rows: ParsedTransaction[], included: Readonly
       rawDescription: row.rawDescription?.trim() || row.cleanMerchant.trim(),
       cleanMerchant: row.cleanMerchant.trim(),
       amount: Math.abs(row.amount as number),
-      category: row.category,
+      categoryId: row.categoryId,
       sourceType: 'CSV',
     }));
 }

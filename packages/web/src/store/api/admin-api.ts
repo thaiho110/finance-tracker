@@ -59,6 +59,22 @@ export interface Page<T> {
   number: number;
 }
 
+export type RegistrationMode = 'OPEN' | 'INVITE_ONLY' | 'CLOSED';
+
+export interface Invite {
+  id: string;
+  createdAt: string;
+  expiresAt: string;
+  used: boolean;
+  usedAt: string | null;
+}
+
+export interface CreatedInvite {
+  id: string;
+  token: string;
+  expiresAt: string;
+}
+
 export const adminApi = api.injectEndpoints({
   endpoints: (builder) => ({
     listUsers: builder.query<Page<AdminUser>, { page: number; size: number }>({
@@ -104,6 +120,26 @@ export const adminApi = api.injectEndpoints({
       query: ({ page, size }) => ({ url: '/admin/audit', params: { page, size } }),
       providesTags: ['Audit'],
     }),
+    getRegistrationMode: builder.query<{ mode: RegistrationMode }, void>({
+      query: () => '/admin/registration',
+      providesTags: ['Registration'],
+    }),
+    setRegistrationMode: builder.mutation<{ mode: RegistrationMode }, RegistrationMode>({
+      query: (mode) => ({ url: '/admin/registration', method: 'PUT', body: { mode } }),
+      invalidatesTags: ['Registration', 'Audit'],
+    }),
+    listInvites: builder.query<Invite[], void>({
+      query: () => '/admin/invites',
+      providesTags: ['Invite'],
+    }),
+    createInvite: builder.mutation<CreatedInvite, void>({
+      query: () => ({ url: '/admin/invites', method: 'POST' }),
+      invalidatesTags: ['Invite', 'Audit'],
+    }),
+    revokeInvite: builder.mutation<void, string>({
+      query: (id) => ({ url: `/admin/invites/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['Invite', 'Audit'],
+    }),
   }),
 });
 
@@ -118,6 +154,11 @@ export const {
   useGetPermissionCatalogQuery,
   useUpdateRolePermissionsMutation,
   useGetAuditQuery,
+  useGetRegistrationModeQuery,
+  useSetRegistrationModeMutation,
+  useListInvitesQuery,
+  useCreateInviteMutation,
+  useRevokeInviteMutation,
 } = adminApi;
 
 /** "USER_DISABLED" → "User disabled", "CSV_IMPORT" → "Csv import" (for codes without a nicer label). */
