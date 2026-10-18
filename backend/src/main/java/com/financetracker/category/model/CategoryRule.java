@@ -6,7 +6,6 @@ import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,27 +18,33 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * "Merchants containing this keyword belong to this category." System rules have {@code userId == null};
+ * a user's own rules win over system rules. The keyword is stored normalized (see
+ * {@code CategorizationService.normalize}).
+ */
 @Entity
-@Table(name = "category_mappings", indexes = {
-    @Index(name = "idx_category_mappings_keyword", columnList = "keyword")
-})
+@Table(name = "category_rules")
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CategoryMapping {
+public class CategoryRule {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, unique = true)
-    private String keyword;
+    @Column(name = "user_id")
+    private UUID userId;
 
     @Column(nullable = false)
-    private String category;
+    private String keyword;
+
+    @Column(name = "category_id", nullable = false)
+    private UUID categoryId;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)

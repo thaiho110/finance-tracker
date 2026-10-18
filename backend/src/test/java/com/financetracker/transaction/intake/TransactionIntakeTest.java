@@ -1,5 +1,7 @@
 package com.financetracker.transaction.intake;
 
+import com.financetracker.category.model.CategoryKind;
+import com.financetracker.category.model.CategoryRef;
 import com.financetracker.category.service.CategorizationService;
 import com.financetracker.transaction.service.DeduplicationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,20 +42,20 @@ class TransactionIntakeTest {
     @BeforeEach
     void setUp() {
         lenient().when(categorizationService.cleanMerchant(anyString())).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(categorizationService.categorize(any())).thenReturn("Other");
+        lenient().when(categorizationService.categorize(any(), any())).thenReturn(new CategoryRef(java.util.UUID.nameUUIDFromBytes("Other".getBytes()), "Other", CategoryKind.EXPENSE, null));
     }
 
     @Test
     @DisplayName("Should categorize from the description as written")
     void shouldCategorize() {
         when(categorizationService.cleanMerchant("STARBUCKS #12345")).thenReturn("STARBUCKS");
-        when(categorizationService.categorize("STARBUCKS #12345")).thenReturn("Coffee Shop");
+        when(categorizationService.categorize(userId, "STARBUCKS #12345")).thenReturn(new CategoryRef(java.util.UUID.nameUUIDFromBytes("Coffee Shop".getBytes()), "Coffee Shop", CategoryKind.EXPENSE, null));
 
         DraftTransaction draft = intake.draft(userId, new RawEntry(SEP_5, "STARBUCKS #12345", new BigDecimal("12.50")));
 
         assertThat(draft.rawDescription()).isEqualTo("STARBUCKS #12345");
         assertThat(draft.cleanMerchant()).isEqualTo("STARBUCKS");
-        assertThat(draft.category()).isEqualTo("Coffee Shop");
+        assertThat(draft.category().name()).isEqualTo("Coffee Shop");
         assertThat(draft.date()).isEqualTo(SEP_5);
         assertThat(draft.amount()).isEqualByComparingTo("12.50");
         assertThat(draft.duplicate()).isFalse();

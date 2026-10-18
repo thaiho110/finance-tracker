@@ -73,7 +73,10 @@ export function TransactionsScreen({ navigation }: Props) {
         <Pressable style={styles.row} onPress={() => navigation.navigate('TransactionDetail', { id: item.id })}>
           <View style={styles.rowMain}>
             <Text style={styles.merchant} numberOfLines={1}>{item.cleanMerchant}</Text>
-            <Text style={styles.muted}>{item.date} · {item.category} · {SOURCE_LABELS[item.sourceType] ?? item.sourceType}</Text>
+            <View style={styles.meta}>
+              <View style={[styles.dot, { backgroundColor: item.categoryColor || colors.textMuted }]} />
+              <Text style={styles.muted}>{item.date} · {item.category} · {SOURCE_LABELS[item.sourceType] ?? item.sourceType}</Text>
+            </View>
           </View>
           <Text style={styles.amount}>{formatVnd(item.amount)}</Text>
         </Pressable>
@@ -83,6 +86,8 @@ export function TransactionsScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  meta: { flexDirection: 'row', alignItems: 'center', gap: space(1.5) },
+  dot: { width: 8, height: 8, borderRadius: 4 },
   list: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: space(4), gap: space(3) },
   emptyContainer: { flexGrow: 1 },

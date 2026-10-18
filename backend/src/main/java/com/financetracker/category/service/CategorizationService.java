@@ -1,49 +1,58 @@
 package com.financetracker.category.service;
 
-import com.financetracker.category.model.CategoryMapping;
-import com.financetracker.category.repository.CategoryMappingRepository;
-import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
+import com.financetracker.category.model.Category;
+import com.financetracker.category.model.CategoryRef;
+import com.financetracker.category.model.CategoryRule;
+import com.financetracker.category.repository.CategoryRepository;
+import com.financetracker.category.repository.CategoryRuleRepository;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
- * Turns a merchant name into a category using the keyword table ({@code category_mappings}).
+ * Turns a merchant name into a category with keyword rules (ADR-015).
  *
- * <p>Callers pass the merchant exactly as it appears on a statement or receipt. Matching ignores
- * case, Vietnamese accents, store numbers and long ids; a keyword must appear as a whole word
- * ({@code GAS} does not match {@code VEGAS}); when several keywords match, the longest wins.
- * Mappings are cached at startup; call {@link #refreshCache()} after changing them.
+ * <p>Callers pass the merchant exactly as it appears on a statement or receipt. Matching ignores case,
+ * Vietnamese accents, store numbers and long ids, and a keyword must appear as a whole word ({@code GAS}
+ * does not match {@code VEGAS}). The user's own rules are tried before system rules; within each group
+ * the longest keyword wins. Rules pointing at an archived category, or at a system category the user
+ * hid, are skipped. Nothing matched means the system category {@value Category#OTHER}.
+ *
+ * <p>Rules are cached per user; {@link CategoryService} evicts the cache on every change.
  */
 @Service
-@RequiredArgsConstructor
 public class CategorizationService {
-
-    /** Category for merchants that match no keyword. */
-    public static final String DEFAULT_CATEGORY = "Other";
 
     private static final Pattern STORE_NUMBER = Pattern.compile("#\\d+");
     private static final Pattern LONG_NUMBER = Pattern.compile("\\b\\d{10,}\\b");
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
     private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{M}+");
+    private static final long CACHE_SIZE = 2_000;
+    private static final Duration CACHE_TTL = Duration.ofMinutes(30);
 
-    private final CategoryMappingRepository repository;
+    private final CategoryRepository categories;
+    private final CategoryRuleRepository rules;
+    private final Cache<UUID, List<CompiledRule>> userRules = Caffeine.newBuilder()
+        .maximumSize(CACHE_SIZE).expireAfterAccess(CACHE_TTL).build();
+    private volatile List<CompiledRule> systemRules;
+    private volatile CategoryRef other;
 
-    /** Longest keyword first, so "TARGET OPTICAL" is tried before "TARGET". Replaced as a whole on refresh. */
-    private volatile List<CachedMapping> cache = List.of();
-
-    @PostConstruct
-    public void refreshCache() {
-        cache = repository.findAll().stream()
-            .filter(mapping -> mapping.getKeyword() != null && !mapping.getKeyword().isBlank())
-            .map(CategorizationService::toCached)
-            .sorted(Comparator.comparingInt((CachedMapping mapping) -> mapping.normalizedKeyword().length()).reversed())
-            .toList();
+    public CategorizationService(CategoryRepository categories, CategoryRuleRepository rules) {
+        this.categories = categories;
+        this.rules = rules;
     }
 
     /**
@@ -59,35 +68,96 @@ public class CategorizationService {
     /**
      * Category for a merchant as written on the source ("STARBUCKS #12345", "Phúc Long Coffee").
      *
-     * @return the category of the longest whole-word keyword match, or {@value #DEFAULT_CATEGORY}
+     * @return the category of the first matching rule (user rules first, longest keyword first), or Other
      */
-    public String categorize(String merchant) {
+    public CategoryRef categorize(UUID userId, String merchant) {
         String text = merchant == null ? "" : normalize(cleanMerchant(merchant));
-        return cache.stream()
-            .filter(mapping -> mapping.pattern().matcher(text).find())
-            .map(CachedMapping::category)
-            .findFirst()
-            .orElse(DEFAULT_CATEGORY);
+        Set<UUID> hidden = categories.findHiddenIds(userId);
+        for (CompiledRule rule : rulesFor(userId)) {
+            if (!hidden.contains(rule.category().id()) && rule.pattern().matcher(text).find()) {
+                return rule.category();
+            }
+        }
+        return other();
     }
 
-    /** Merchant keywords known from the mappings, used to recognize the merchant on scanned receipts. */
+    /** The system category {@value Category#OTHER}. */
+    public CategoryRef other() {
+        CategoryRef current = other;
+        if (current == null) {
+            current = categories.findSystemByName(Category.OTHER).map(CategoryRef::of)
+                .orElseThrow(() -> new IllegalStateException("System category 'Other' is missing (migration V5)"));
+            other = current;
+        }
+        return current;
+    }
+
+    /** Merchant keywords known from the system rules, used to recognize the merchant on scanned receipts. */
     public List<String> knownMerchantKeywords() {
-        return cache.stream().map(CachedMapping::keyword).toList();
+        return systemRules().stream().map(CompiledRule::keyword).toList();
+    }
+
+    /** Whether a merchant (as written) contains the keyword as a whole word, the way rules match. */
+    public boolean matches(String keyword, String merchant) {
+        String text = merchant == null ? "" : normalize(cleanMerchant(merchant));
+        return wholeWord(normalize(keyword)).matcher(text).find();
+    }
+
+    /** Forget one user's cached rules after their rules or categories changed. */
+    public void evictUser(UUID userId) {
+        userRules.invalidate(userId);
+    }
+
+    /** Forget every cached rule after a system rule or category changed. */
+    public void evictAll() {
+        systemRules = null;
+        other = null;
+        userRules.invalidateAll();
     }
 
     /** Upper case, accents removed, Đ→D, single spaces: the form keywords and merchants are compared in. */
-    static String normalize(String text) {
+    public static String normalize(String text) {
         String withoutDStroke = text.replace('Đ', 'D').replace('đ', 'd');
         String decomposed = Normalizer.normalize(withoutDStroke, Normalizer.Form.NFD);
         String withoutMarks = COMBINING_MARKS.matcher(decomposed).replaceAll("");
         return WHITESPACE.matcher(withoutMarks.toUpperCase(Locale.ROOT)).replaceAll(" ").strip();
     }
 
-    private static CachedMapping toCached(CategoryMapping mapping) {
-        String key = normalize(mapping.getKeyword());
-        Pattern wholeWord = Pattern.compile("(?<![\\p{L}\\p{N}])" + Pattern.quote(key) + "(?![\\p{L}\\p{N}])");
-        return new CachedMapping(mapping.getKeyword(), key, mapping.getCategory(), wholeWord);
+    private List<CompiledRule> rulesFor(UUID userId) {
+        return userRules.get(userId, id -> {
+            List<CompiledRule> all = new ArrayList<>(compile(rules.findByUserIdOrderByKeyword(id)));
+            all.addAll(systemRules());
+            return List.copyOf(all);
+        });
     }
 
-    private record CachedMapping(String keyword, String normalizedKeyword, String category, Pattern pattern) { }
+    private List<CompiledRule> systemRules() {
+        List<CompiledRule> current = systemRules;
+        if (current == null) {
+            current = compile(rules.findSystem());
+            systemRules = current;
+        }
+        return current;
+    }
+
+    /** Usable rules (category exists and isn't archived), longest keyword first. */
+    private List<CompiledRule> compile(List<CategoryRule> source) {
+        Map<UUID, Category> byId = categories.findByIdIn(source.stream().map(CategoryRule::getCategoryId).toList())
+            .stream().collect(Collectors.toMap(Category::getId, Function.identity()));
+        return source.stream()
+            .filter(rule -> rule.getKeyword() != null && !rule.getKeyword().isBlank())
+            .filter(rule -> byId.containsKey(rule.getCategoryId()) && !byId.get(rule.getCategoryId()).isArchived())
+            .map(rule -> {
+                String key = normalize(rule.getKeyword());
+                return new CompiledRule(rule.getKeyword(), key, CategoryRef.of(byId.get(rule.getCategoryId())), wholeWord(key));
+            })
+            .sorted(Comparator.comparingInt((CompiledRule rule) -> rule.normalizedKeyword().length()).reversed())
+            .toList();
+    }
+
+    private static Pattern wholeWord(String normalizedKeyword) {
+        return Pattern.compile("(?<![\\p{L}\\p{N}])" + Pattern.quote(normalizedKeyword) + "(?![\\p{L}\\p{N}])");
+    }
+
+    private record CompiledRule(String keyword, String normalizedKeyword, CategoryRef category, Pattern pattern) { }
 }

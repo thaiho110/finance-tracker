@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @Schema(description = "Result of receipt OCR extraction. Fields that could not be read are null; see warnings.")
 public record ParsedReceiptResponse(
@@ -14,7 +15,9 @@ public record ParsedReceiptResponse(
     LocalDate date,
     @Schema(description = "Total amount on the receipt in VND, or null if not found", example = "184500", nullable = true)
     BigDecimal totalAmount,
-    @Schema(description = "Auto-detected category", example = "Food & Dining")
+    @Schema(description = "Auto-detected category id")
+    UUID categoryId,
+    @Schema(description = "Auto-detected category name", example = "Groceries")
     String category,
     @Schema(description = "Whether a transaction with the same date (±2 days) and amount already exists", example = "false")
     boolean isDuplicate,

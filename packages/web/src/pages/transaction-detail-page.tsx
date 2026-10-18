@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Pencil, Loader2, AlertTriangle, Check } from 'lucide-react';
 import { useGetTransactionQuery, useUpdateTransactionMutation } from '@/store/api/transaction-api';
 import { useGetCategoriesQuery } from '@/store/api/category-api';
+import { CategorySelect } from '@/components/category/category-select';
+import { useAlwaysUsePrompt } from '@/components/category/use-always-use';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { CategoryBadge } from '@/components/ui/category-badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrencyFull, formatDateISO } from '@/lib/utils';
 import { apiErrorMessage } from '@/lib/api-error';
@@ -38,6 +39,7 @@ export default function TransactionDetailPage() {
   const { data: tx, isLoading } = useGetTransactionQuery(id!);
   const { data: categories = [] } = useGetCategoriesQuery();
   const [updateTransaction, { isLoading: isSaving }] = useUpdateTransactionMutation();
+  const alwaysUse = useAlwaysUsePrompt();
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<any>(null);
@@ -60,17 +62,13 @@ export default function TransactionDetailPage() {
     );
   }
 
-  const categoryOptions: string[] = form?.category && !categories.includes(form.category)
-    ? [form.category, ...categories]
-    : categories;
-
   const startEditing = () => {
     setForm({
       date: formatDateISO(tx.date),
       rawDescription: tx.rawDescription,
       cleanMerchant: tx.cleanMerchant,
       amount: Math.abs(Number(tx.amount) || 0),
-      category: tx.category,
+      categoryId: tx.categoryId,
     });
     setEditing(true);
   };
@@ -83,6 +81,8 @@ export default function TransactionDetailPage() {
       await updateTransaction({ id: id!, data: { ...form, cleanMerchant: form.cleanMerchant.trim() } }).unwrap();
       setEditing(false);
       toast.success('Transaction updated');
+      const changedTo = form.categoryId !== tx.categoryId ? categories.find((c) => c.id === form.categoryId) : undefined;
+      if (changedTo) alwaysUse(form.cleanMerchant, changedTo);
     } catch (err: any) {
       toast.error(apiErrorMessage(err, 'Failed to update transaction'));
     }
@@ -183,16 +183,12 @@ export default function TransactionDetailPage() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="field-label">Category</Label>
-                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                  <SelectTrigger className="h-9 w-full">
-                    <SelectValue>{form.category ? <CategoryBadge category={form.category} /> : null}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoryOptions.map((c) => (
-                      <SelectItem key={c} value={c}><CategoryBadge category={c} /></SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CategorySelect
+                  value={form.categoryId}
+                  categories={categories}
+                  current={{ id: tx.categoryId, name: tx.category, color: tx.categoryColor }}
+                  onChange={(c) => setForm({ ...form, categoryId: c.id })}
+                />
               </div>
             </div>
           ) : (
@@ -204,7 +200,7 @@ export default function TransactionDetailPage() {
                   <span className="break-words text-text-muted">{tx.rawDescription}</span>
                 </Field>
               </div>
-              <Field label="Category"><CategoryBadge category={tx.category} /></Field>
+              <Field label="Category"><CategoryBadge category={tx.category} color={tx.categoryColor} /></Field>
               <Field label="Source">
                 <span className="inline-flex items-center rounded-full bg-bg-muted px-2.5 py-0.5 text-xs font-medium uppercase tracking-wider text-text-muted">
                   {SOURCE_LABELS[tx.sourceType] || tx.sourceType}

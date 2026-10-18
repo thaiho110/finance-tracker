@@ -50,7 +50,7 @@ public class CsvImportService {
         for (int rowIndex = 0; rowIndex < drafts.size(); rowIndex++) {
             DraftTransaction draft = drafts.get(rowIndex);
             rows.add(new ParsedTransactionResponse(rowIndex, draft.date(), draft.rawDescription(),
-                draft.cleanMerchant(), draft.amount(), draft.category(), draft.duplicate()));
+                draft.cleanMerchant(), draft.amount(), draft.category().id(), draft.category().name(), draft.duplicate()));
         }
         return rows;
     }

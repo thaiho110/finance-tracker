@@ -19,6 +19,8 @@ import UploadPage from '@/pages/upload-page';
 import AdminUsersPage from '@/pages/admin/users-page';
 import AdminRolesPage from '@/pages/admin/roles-page';
 import AdminAuditPage from '@/pages/admin/audit-page';
+import AdminCategoriesPage from '@/pages/admin/categories-page';
+import CategoriesSettingsPage from '@/pages/settings/categories-page';
 import { Toaster } from '@/components/ui/sonner';
 
 function AuthCheck({ children }: { children: React.ReactNode }) {
@@ -98,11 +100,13 @@ export default function App() {
             />
             {/* The import page checks CSV_IMPORT and RECEIPT_SCAN per tab */}
             <Route path="/upload" element={<UploadPage />} />
+            <Route path="/settings/categories" element={<RequirePermission permission="CATEGORY_READ"><CategoriesSettingsPage /></RequirePermission>} />
 
             {/* Administration (ADR-018) */}
             <Route path="/admin/users" element={<RequirePermission permission="USER_READ"><AdminUsersPage /></RequirePermission>} />
             <Route path="/admin/roles" element={<RequirePermission permission="USER_READ"><AdminRolesPage /></RequirePermission>} />
             <Route path="/admin/audit" element={<RequirePermission permission="AUDIT_READ"><AdminAuditPage /></RequirePermission>} />
+            <Route path="/admin/categories" element={<RequirePermission permission="CATEGORY_ADMIN"><AdminCategoriesPage /></RequirePermission>} />
           </Route>
 
           {/* Default redirect */}

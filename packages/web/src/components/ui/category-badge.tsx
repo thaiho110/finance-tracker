@@ -3,26 +3,30 @@ import { getCategoryTone } from '@/lib/utils';
 
 interface CategoryBadgeProps {
   category: string;
+  /** The category's own color (#RRGGBB). Without it the badge falls back to a tone by name. */
+  color?: string | null;
   className?: string;
 }
 
 /**
- * Category badge with the correct tone color and dot indicator.
- * Follows the design spec: background at 14% opacity, solid 6px dot, default text color.
+ * Category badge with a colored dot. Follows the design spec: background at 14% opacity, solid 6px dot,
+ * default text color.
  */
-export function CategoryBadge({ category, className }: CategoryBadgeProps) {
-  const tone = getCategoryTone(category);
+export function CategoryBadge({ category, color, className }: CategoryBadgeProps) {
+  const hasColor = !!color && /^#[0-9a-f]{6}$/i.test(color);
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-        `category-${tone}`,
+        !hasColor && `category-${getCategoryTone(category)}`,
+        hasColor && 'text-text-default',
         className
       )}
+      style={hasColor ? { backgroundColor: `${color}24` } : undefined}
     >
       <span
         className="size-1.5 rounded-full shrink-0"
-        style={{ backgroundColor: 'currentColor' }}
+        style={{ backgroundColor: hasColor ? color! : 'currentColor' }}
       />
       {category}
     </span>

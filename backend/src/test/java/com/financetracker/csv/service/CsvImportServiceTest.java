@@ -1,5 +1,7 @@
 package com.financetracker.csv.service;
 
+import com.financetracker.category.model.CategoryKind;
+import com.financetracker.category.model.CategoryRef;
 import com.financetracker.category.service.CategorizationService;
 import com.financetracker.common.dto.ParsedTransactionResponse;
 import com.financetracker.transaction.intake.TransactionIntake;
@@ -37,7 +39,7 @@ class CsvImportServiceTest {
     void setUp() {
         csvImportService = new CsvImportService(new TransactionIntake(categorizationService, deduplicationService));
         lenient().when(categorizationService.cleanMerchant(anyString())).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(categorizationService.categorize(anyString())).thenReturn("Other");
+        lenient().when(categorizationService.categorize(any(), anyString())).thenReturn(new CategoryRef(java.util.UUID.nameUUIDFromBytes("Other".getBytes()), "Other", CategoryKind.EXPENSE, null));
         lenient().when(deduplicationService.isDuplicate(any(), any(), any())).thenReturn(false);
     }
 
@@ -50,7 +52,7 @@ class CsvImportServiceTest {
     @DisplayName("Should parse standard CSV with default headers")
     void shouldParseStandardCsv() {
         when(categorizationService.cleanMerchant("STARBUCKS #12345")).thenReturn("STARBUCKS");
-        when(categorizationService.categorize("STARBUCKS #12345")).thenReturn("Coffee Shop");
+        when(categorizationService.categorize(any(), org.mockito.ArgumentMatchers.eq("STARBUCKS #12345"))).thenReturn(new CategoryRef(java.util.UUID.nameUUIDFromBytes("Coffee Shop".getBytes()), "Coffee Shop", CategoryKind.EXPENSE, null));
 
         List<ParsedTransactionResponse> results = parse("""
             date,description,amount

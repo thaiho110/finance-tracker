@@ -1,14 +1,29 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { errorCodes, isErrorWithCode, pick, types } from '@react-native-documents/picker';
-import { formatVnd, type ParsedTransaction } from '@finance-tracker/shared';
+import { formatVnd, type Category, type ParsedTransaction } from '@finance-tracker/shared';
 import { useSession } from '../session/SessionContext';
 import { Banner, Button } from '../components/ui';
+import { CategoryPicker } from '../components/CategoryPicker';
+import { offerAlwaysUse } from '../features/alwaysUse';
 import { defaultSelection, isComplete, rowsToTransactions } from '../features/csv';
 import { colors, radius, space } from '../theme';
 
 export function ImportCsvScreen() {
-  const { api } = useSession();
+  const { api, can } = useSession();
+  const [categories, setCategories] = useState<Category[]>([]);
+  /** Row whose category is being changed. */
+  const [editing, setEditing] = useState<ParsedTransaction | null>(null);
+
+  useEffect(() => {
+    api.categories.list().then(setCategories).catch(() => setCategories([]));
+  }, [api]);
+
+  const setCategory = (row: ParsedTransaction, category: Category) => {
+    setRows((current) => current.map((r) => (r.rowIndex === row.rowIndex ? { ...r, categoryId: category.id, category: category.name } : r)));
+    setEditing(null);
+    if (can('CATEGORY_WRITE')) offerAlwaysUse(api, row.cleanMerchant || row.rawDescription || '', category, setSaved);
+  };
   const [fileName, setFileName] = useState<string | null>(null);
   const [rows, setRows] = useState<ParsedTransaction[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -99,7 +114,9 @@ export function ImportCsvScreen() {
               <View style={styles.rowMain}>
                 <Text style={styles.merchant} numberOfLines={1}>{item.cleanMerchant || item.rawDescription || '—'}</Text>
                 <Text style={styles.muted}>
-                  {item.date ?? 'No date'} · {item.category}{item.isDuplicate ? ' · possible duplicate' : ''}
+                  {item.date ?? 'No date'} ·{' '}
+                  <Text style={styles.link} onPress={() => setEditing(item)} accessibilityRole="button">{item.category} ▾</Text>
+                  {item.isDuplicate ? ' · possible duplicate' : ''}
                 </Text>
               </View>
               <Text style={styles.amount}>{formatVnd(item.amount)}</Text>
@@ -107,6 +124,22 @@ export function ImportCsvScreen() {
           );
         }}
       />
+      <Modal visible={!!editing} transparent animationType="slide" onRequestClose={() => setEditing(null)}>
+        <View style={styles.backdrop}>
+          <View style={styles.sheet}>
+            <Text style={styles.sheetTitle} numberOfLines={1}>Category for {editing?.cleanMerchant || editing?.rawDescription}</Text>
+            {editing ? (
+              <CategoryPicker
+                value={editing.categoryId}
+                categories={categories}
+                current={{ id: editing.categoryId, name: editing.category }}
+                onChange={(category) => setCategory(editing, category)}
+              />
+            ) : null}
+            <Button title="Cancel" variant="secondary" onPress={() => setEditing(null)} />
+          </View>
+        </View>
+      </Modal>
       {rows.length > 0 ? (
         <View style={styles.footer}>
           <Button title={`Save ${selected.size} transaction${selected.size === 1 ? '' : 's'}`} onPress={save} loading={busy === 'saving'} disabled={selected.size === 0} />
@@ -134,6 +167,10 @@ const styles = StyleSheet.create({
   merchant: { fontSize: 15, fontWeight: '600', color: colors.text },
   amount: { fontSize: 15, fontWeight: '600', color: colors.text, fontVariant: ['tabular-nums'] },
   muted: { fontSize: 12, color: colors.textMuted },
+  link: { color: colors.primary, fontWeight: '600' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet: { backgroundColor: colors.canvas, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: space(5), gap: space(4) },
+  sheetTitle: { fontSize: 17, fontWeight: '600', color: colors.text },
   separator: { height: space(2) },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: space(4), backgroundColor: colors.canvas, borderTopWidth: 1, borderTopColor: colors.border },
 });

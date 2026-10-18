@@ -1,6 +1,6 @@
 # ADR-015: User-Owned Categories and Categorization Rules
 
-**Status:** Proposed  
+**Status:** Accepted (implemented 2026-10-19, with the amendments below)  
 **Date:** 2026-10-18  
 **Deciders:** Thai Ho  
 **Amends:** [ADR-005](./005-keyword-categorization.md) (Keyword + Regex Categorization)
@@ -145,3 +145,43 @@ Remove or tighten short ambiguous system keywords (`BP`, `GAS`), which word-boun
 - Ownership: a user cannot read, edit or attach rules to another user's category (404, not 403).
 - Migration: run V4 against a DB with existing transactions; every row gets a `category_id`; unknown names become user categories.
 - Archive/move: deleting a used category archives it; `moveTo` reassigns transactions.
+
+## Amendments (2026-10-19, at implementation)
+
+Decided while building it; where this list and the text above disagree, this list wins.
+
+- **Migrations renumbered.** V4 was taken by ADR-018, so the new tables are **V5** (`V5__categories_and_rules.sql`).
+  The old `transactions.category` column and `category_mappings` are dropped later in **V6**; until then V5 only
+  makes `category` nullable and nothing writes it.
+- **Three kinds, not two.** `kind` is `EXPENSE`, `INCOME` or **`TRANSFER`** (money between the user's own accounts:
+  savings, card payments, wallet top-ups). V5 adds a system **Transfer** category. Transfers are listed but count in
+  no total (spending, income, budgets, dashboard breakdown).
+- **The kind decides, not the sign.** A transaction counts in its category's bucket; amounts are summed as stored
+  within the bucket. A negative amount in an expense category is a refund and lowers that category's spending.
+  The API now accepts any non-zero amount (previously only positive); the web and mobile forms still enter
+  positive amounts, so refunds are entered through the API for now.
+- **Flat list.** No parent/child categories; a "group" field can be added later without moving data.
+- **Learning from corrections, past transactions.** Accepting "Always use…" asks a second question when it would
+  change history: "Also move N past transactions still in **Other**?" Only transactions in Other move, never ones
+  the user categorized by hand. API: `GET /categories/rules/preview?keyword=` (count) and `applyToPast` on
+  `POST /categories/rules`.
+- **Permissions (ADR-018).** `CATEGORY_WRITE` (USER and ADMIN): own categories and rules. `CATEGORY_ADMIN` (ADMIN):
+  default categories and rules at `/api/v1/admin/categories`, every change written to the audit log.
+- **Backfill.** Old names matching a system category (case-insensitive) use it; any other name becomes a category of
+  that transaction's owner; rows without an owner fall back to Other.
+- **Seed.** Existing keywords keep their categories (`GAS` and `BP` dropped); Vietnamese merchants map to the existing
+  names (`Coffee Shop`, `Groceries`, `Online Shopping`, `Transportation`, `Utilities`, `Health`, `Travel`,
+  `Entertainment`) plus `Income` (LUONG, SALARY) and `Transfer` (CHUYEN TIEN, NAP TIEN, TOPUP). New defaults:
+  Other, Income, Transfer, Housing, Education. Each default has a color.
+- **Older clients.** Transaction requests take `categoryId`; a `category` name is still accepted (a visible category
+  by name, or a new own category) and `GET /transactions?category=<name>` still filters. Responses carry
+  `category` (name), `categoryId`, `categoryKind` and `categoryColor`.
+- **Clients.** Web: grouped picker with "+ New category" everywhere a category is chosen, the "Always use…" toast,
+  Settings → Categories (categories, hide defaults, rules) and Administration → Default categories. Mobile: the same
+  picker (chips) in edit, scan and CSV import, "+ New", and the "Always use…" prompt; managing categories and rules
+  stays on web/desktop.
+
+Also fixed while here: a 403 from a URL rule reached clients as 401 (Spring forwarded it to `/error`, which needed a
+login), so clients treated "forbidden" as an expired session; `/error` is now public. Validation errors in list
+bodies (`POST /transactions/batch`) returned 500 instead of 400.
+

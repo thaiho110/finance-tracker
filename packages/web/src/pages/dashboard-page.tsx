@@ -65,10 +65,15 @@ export default function DashboardPage() {
     );
   }
 
-  const categoryData = (data.categoryBreakdown || []).map((c: any) => ({
-    name: c.category,
-    value: Math.abs(c.total),
-  }));
+  // Spending only: income categories are in the totals above, transfers count nowhere (ADR-015).
+  const categoryData = (data.categoryBreakdown || [])
+    .filter((c: any) => c.kind === 'EXPENSE' && c.total > 0)
+    .map((c: any, i: number) => ({
+      id: c.categoryId,
+      name: c.category,
+      value: c.total,
+      color: c.color || CHART_COLORS[i % CHART_COLORS.length],
+    }));
 
   const monthlyData = (data.monthlyTrend || []).map((m: any) => ({
     name: m.month,
@@ -151,13 +156,13 @@ export default function DashboardPage() {
                       paddingAngle={3}
                       dataKey="value"
                       onClick={(_, idx) => {
-                        const cat = categoryData[idx]?.name;
-                        if (cat) navigate(`/transactions?category=${encodeURIComponent(cat)}`);
+                        const cat = categoryData[idx]?.id;
+                        if (cat) navigate(`/transactions?categoryId=${cat}`);
                       }}
                       style={{ cursor: 'pointer' }}
                     >
-                      {categoryData.map((_: any, i: number) => (
-                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="none" />
+                      {categoryData.map((c: any) => (
+                        <Cell key={c.id} fill={c.color} stroke="none" />
                       ))}
                     </Pie>
                     <Tooltip
@@ -181,13 +186,13 @@ export default function DashboardPage() {
                 </div>
                 {/* Legend */}
                 <div className="flex flex-wrap gap-3 mt-2 justify-center">
-                  {categoryData.map((c: any, i: number) => (
+                  {categoryData.map((c: any) => (
                     <button
-                      key={c.name}
-                      onClick={() => navigate(`/transactions?category=${encodeURIComponent(c.name)}`)}
+                      key={c.id}
+                      onClick={() => navigate(`/transactions?categoryId=${c.id}`)}
                       className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-default transition-colors"
                     >
-                      <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
                       {c.name} {formatCurrency(c.value)}
                     </button>
                   ))}
@@ -281,7 +286,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <CategoryBadge category={tx.category} />
+                    <CategoryBadge category={tx.category} color={tx.categoryColor} />
                     <span className="text-sm font-semibold text-mono tabular-nums text-right text-text-default min-w-[80px]">
                       {formatCurrencyFull(tx.amount)}
                     </span>

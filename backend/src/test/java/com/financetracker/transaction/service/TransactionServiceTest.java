@@ -1,5 +1,8 @@
 package com.financetracker.transaction.service;
 
+import com.financetracker.category.model.CategoryKind;
+import com.financetracker.category.model.CategoryRef;
+import com.financetracker.category.service.CategoryService;
 import com.financetracker.transaction.dto.ReceiptLineItemRequest;
 import com.financetracker.transaction.dto.TransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
@@ -25,6 +28,7 @@ import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,6 +43,7 @@ class TransactionServiceTest {
     @Mock private TransactionRepository transactionRepository;
     @Mock private ReceiptItemRepository receiptItemRepository;
     @Mock private Counter transactionsCreated;
+    @Mock private CategoryService categoryService;
 
     @InjectMocks private TransactionService transactionService;
 
@@ -46,6 +51,7 @@ class TransactionServiceTest {
     private UUID transactionId;
     private Transaction testTransaction;
     private TransactionRequest testRequest;
+    private final CategoryRef coffee = new CategoryRef(UUID.randomUUID(), "Coffee Shop", CategoryKind.EXPENSE, "#8B5E3C");
 
     @BeforeEach
     void setUp() {
@@ -56,6 +62,7 @@ class TransactionServiceTest {
             "STARBUCKS #12345",
             "STARBUCKS",
             BigDecimal.valueOf(12.50),
+            null,
             "Coffee Shop",
             "CSV",
             null
@@ -66,12 +73,14 @@ class TransactionServiceTest {
             .rawDescription("STARBUCKS #12345")
             .cleanMerchant("STARBUCKS")
             .amount(BigDecimal.valueOf(12.50))
-            .category("Coffee Shop")
+            .categoryId(coffee.id())
             .sourceType(SourceType.CSV)
             .clientId("finance-tracker-web")
             .isDuplicate(false)
             .createdBy(userId)
             .build();
+        lenient().when(categoryService.resolveForTransaction(any(), any(), any())).thenReturn(coffee);
+        lenient().when(categoryService.refs(any())).thenReturn(Map.of(coffee.id(), coffee));
     }
 
     @Test
@@ -85,6 +94,10 @@ class TransactionServiceTest {
         assertThat(results).hasSize(1);
         assertThat(results.get(0).cleanMerchant()).isEqualTo("STARBUCKS");
         assertThat(results.get(0).amount()).isEqualByComparingTo(BigDecimal.valueOf(12.50));
+        assertThat(results.get(0).category()).isEqualTo("Coffee Shop");
+        assertThat(results.get(0).categoryId()).isEqualTo(coffee.id());
+        assertThat(results.get(0).categoryKind()).isEqualTo("EXPENSE");
+        verify(categoryService).resolveForTransaction(userId, null, "Coffee Shop");
         verify(transactionsCreated).increment(1);
     }
 
@@ -106,9 +119,9 @@ class TransactionServiceTest {
         LocalDate from = LocalDate.of(2024, 1, 1);
         LocalDate to = LocalDate.of(2024, 1, 31);
         PageRequest pageable = PageRequest.of(0, 20);
-        when(transactionRepository.findByFilters(userId, "Coffee Shop", from, to, pageable)).thenReturn(page);
+        when(transactionRepository.findByFilters(userId, coffee.id(), from, to, pageable)).thenReturn(page);
 
-        Page<TransactionResponse> result = transactionService.findAll(userId, "Coffee Shop", from, to, pageable);
+        Page<TransactionResponse> result = transactionService.findAll(userId, coffee.id(), from, to, pageable);
 
         assertThat(result.getContent()).hasSize(1);
     }
@@ -142,7 +155,7 @@ class TransactionServiceTest {
         assertThatThrownBy(() -> transactionService.findById(transactionId, otherUser))
             .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
         TransactionUpdateRequest correction = new TransactionUpdateRequest(
-            LocalDate.of(2024, 1, 15), null, "STARBUCKS", BigDecimal.TEN, "Coffee Shop");
+            LocalDate.of(2024, 1, 15), null, "STARBUCKS", BigDecimal.TEN, null, "Coffee Shop");
         assertThatThrownBy(() -> transactionService.update(transactionId, correction, otherUser))
             .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
         assertThatThrownBy(() -> transactionService.delete(transactionId, otherUser))
@@ -162,6 +175,7 @@ class TransactionServiceTest {
             "AMAZON PURCHASE",
             "AMAZON",
             BigDecimal.valueOf(99.99),
+            null,
             "Online Shopping"
         );
 
@@ -179,7 +193,7 @@ class TransactionServiceTest {
         when(transactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         TransactionResponse response = transactionService.update(transactionId,
-            new TransactionUpdateRequest(LocalDate.of(2024, 1, 15), "  ", "Highlands Coffee", BigDecimal.valueOf(55_000), "Coffee Shop"),
+            new TransactionUpdateRequest(LocalDate.of(2024, 1, 15), "  ", "Highlands Coffee", BigDecimal.valueOf(55_000), coffee.id(), null),
             userId);
 
         assertThat(response.amount()).isEqualByComparingTo("55000");
@@ -204,7 +218,7 @@ class TransactionServiceTest {
     void shouldSaveReceiptLineItemsForOcr() {
         TransactionRequest ocrRequest = new TransactionRequest(
             LocalDate.of(2026, 10, 17), "Bach Hoa Xanh", "Bach Hoa Xanh", BigDecimal.valueOf(90_000),
-            "Food & Dining", "OCR",
+            null, "Groceries", "OCR",
             List.of(new ReceiptLineItemRequest("RAU MUONG ", BigDecimal.valueOf(12_000)),
                 new ReceiptLineItemRequest("GAO ST25 2KG", BigDecimal.valueOf(78_000))));
         Transaction saved = Transaction.builder()
@@ -213,7 +227,7 @@ class TransactionServiceTest {
             .rawDescription("Bach Hoa Xanh")
             .cleanMerchant("Bach Hoa Xanh")
             .amount(BigDecimal.valueOf(90_000))
-            .category("Food & Dining")
+            .categoryId(coffee.id())
             .sourceType(SourceType.OCR)
             .clientId("finance-tracker-web")
             .isDuplicate(false)
@@ -234,7 +248,7 @@ class TransactionServiceTest {
     @DisplayName("Should ignore line items on non-OCR transactions")
     void shouldIgnoreLineItemsForCsv() {
         TransactionRequest csvRequest = new TransactionRequest(
-            LocalDate.of(2024, 1, 15), "STARBUCKS #12345", "STARBUCKS", BigDecimal.valueOf(12.50), "Coffee Shop", "CSV",
+            LocalDate.of(2024, 1, 15), "STARBUCKS #12345", "STARBUCKS", BigDecimal.valueOf(12.50), null, "Coffee Shop", "CSV",
             List.of(new ReceiptLineItemRequest("Latte", BigDecimal.valueOf(12.50))));
         when(transactionRepository.saveAll(any())).thenReturn(List.of(testTransaction));
 

@@ -199,7 +199,7 @@ public class OcrService {
             .map(item -> new ParsedReceiptResponse.LineItem(item.item(), item.price()))
             .toList();
         return new ParsedReceiptResponse(receipt.merchant(), receipt.date(), receipt.total(),
-            draft.category(), draft.duplicate(), lineItems, receipt.warnings());
+            draft.category().id(), draft.category().name(), draft.duplicate(), lineItems, receipt.warnings());
     }
 
     private void recordFields(ExtractedReceipt receipt) {

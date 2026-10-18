@@ -22,7 +22,9 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import static com.financetracker.access.model.Permission.AUDIT_READ;
+import static com.financetracker.access.model.Permission.CATEGORY_ADMIN;
 import static com.financetracker.access.model.Permission.CATEGORY_READ;
+import static com.financetracker.access.model.Permission.CATEGORY_WRITE;
 import static com.financetracker.access.model.Permission.CSV_IMPORT;
 import static com.financetracker.access.model.Permission.DASHBOARD_VIEW;
 import static com.financetracker.access.model.Permission.FEATURE_MANAGE;
@@ -62,6 +64,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/me").authenticated()
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                // Spring Boot forwards errors (including 403 from the rules below) to /error; if /error itself
+                // required a login, every "forbidden" would reach the client as 401 and look like an expired session.
+                .requestMatchers("/error").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
 
@@ -73,6 +78,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/transactions/**").hasAuthority(TRANSACTION_READ.name())
                 .requestMatchers("/api/v1/transactions/**").hasAuthority(TRANSACTION_WRITE.name())
                 .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").hasAuthority(CATEGORY_READ.name())
+                .requestMatchers("/api/v1/categories/**").hasAuthority(CATEGORY_WRITE.name())
 
                 // Administration
                 .requestMatchers("/api/v1/admin/users/*/features/**").hasAuthority(FEATURE_MANAGE.name())
@@ -83,6 +89,7 @@ public class SecurityConfig {
                     .hasAuthority(USER_READ.name())
                 .requestMatchers("/api/v1/admin/roles/**").hasAuthority(ROLE_MANAGE.name())
                 .requestMatchers(HttpMethod.GET, "/api/v1/admin/audit/**").hasAuthority(AUDIT_READ.name())
+                .requestMatchers("/api/v1/admin/categories/**").hasAuthority(CATEGORY_ADMIN.name())
                 .requestMatchers("/api/v1/admin/**").denyAll()
 
                 .anyRequest().authenticated()

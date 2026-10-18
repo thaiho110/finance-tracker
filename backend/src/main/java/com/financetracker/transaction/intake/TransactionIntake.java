@@ -41,7 +41,7 @@ public class TransactionIntake {
                 entry.description(),
                 categorizationService.cleanMerchant(entry.description()),
                 entry.amount(),
-                categorizationService.categorize(entry.description()),
+                categorizationService.categorize(userId, entry.description()),
                 duplicate));
         }
         return drafts;

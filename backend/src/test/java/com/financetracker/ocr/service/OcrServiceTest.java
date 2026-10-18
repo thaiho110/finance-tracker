@@ -1,5 +1,7 @@
 package com.financetracker.ocr.service;
 
+import com.financetracker.category.model.CategoryKind;
+import com.financetracker.category.model.CategoryRef;
 import com.financetracker.category.service.CategorizationService;
 import com.financetracker.ocr.config.OcrProperties;
 import com.financetracker.ocr.dto.ParsedReceiptResponse;
@@ -70,7 +72,7 @@ class OcrServiceTest {
         ocrService = new OcrService(categorizationService, intake, ocrEngine, meterRegistry, new OcrProperties());
         ocrService.setClock(Clock.fixed(Instant.parse("2026-10-18T03:00:00Z"), ZoneOffset.UTC));
         lenient().when(categorizationService.knownMerchantKeywords()).thenReturn(List.of("BACH HOA XANH"));
-        lenient().when(categorizationService.categorize(anyString())).thenReturn("Food & Dining");
+        lenient().when(categorizationService.categorize(any(), anyString())).thenReturn(new CategoryRef(java.util.UUID.nameUUIDFromBytes("Groceries".getBytes()), "Groceries", CategoryKind.EXPENSE, null));
     }
 
     private static MockMultipartFile jpeg() throws Exception {
@@ -110,12 +112,13 @@ class OcrServiceTest {
         assertThat(response.merchant()).isEqualTo("Bach Hoa Xanh");
         assertThat(response.date()).isEqualTo(LocalDate.of(2026, 10, 17));
         assertThat(response.totalAmount()).isEqualByComparingTo("90000");
-        assertThat(response.category()).isEqualTo("Food & Dining");
+        assertThat(response.category()).isEqualTo("Groceries");
+        assertThat(response.categoryId()).isNotNull();
         assertThat(response.isDuplicate()).isTrue();
         assertThat(response.lineItems()).extracting(ParsedReceiptResponse.LineItem::item)
             .containsExactly("RAU MUONG", "GAO ST25 2KG");
         assertThat(response.warnings()).isEmpty();
-        verify(categorizationService).categorize("Bach Hoa Xanh");
+        verify(categorizationService).categorize(any(), org.mockito.ArgumentMatchers.eq("Bach Hoa Xanh"));
         verify(ocrEngine, never()).recognize(any(), eq(Layout.FALLBACK));
         assertThat(meterRegistry.counter("finance.ocr.receipts", "outcome", "ok").count()).isEqualTo(1.0);
     }

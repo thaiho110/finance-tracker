@@ -2,6 +2,7 @@ package com.financetracker.transaction.api;
 
 import com.financetracker.auth.security.AuthenticatedUser;
 import com.financetracker.auth.security.CurrentUser;
+import com.financetracker.transaction.dto.TransactionFilter;
 import com.financetracker.transaction.dto.TransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
 import com.financetracker.transaction.dto.TransactionSummaryResponse;
@@ -12,11 +13,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,10 +27,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -54,15 +53,20 @@ public class TransactionController {
     }
 
     @GetMapping
-    @Operation(summary = "List transactions with pagination and filtering")
+    @Operation(summary = "List transactions with pagination and filtering (categoryId, or category by name for older clients)")
     public ResponseEntity<Page<TransactionResponse>> listTransactions(
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @ParameterObject TransactionFilter filter,
             @PageableDefault(size = 20, sort = "date", direction = Sort.Direction.DESC) Pageable pageable,
             @CurrentUser AuthenticatedUser user) {
         UUID userId = user.getId();
-        return ResponseEntity.ok(transactionService.findAll(userId, category, dateFrom, dateTo, pageable));
+        UUID categoryId = filter.categoryId();
+        if (categoryId == null && filter.category() != null && !filter.category().isBlank()) {
+            categoryId = transactionService.categoryIdByName(userId, filter.category());
+            if (categoryId == null) {
+                return ResponseEntity.ok(Page.empty(pageable));
+            }
+        }
+        return ResponseEntity.ok(transactionService.findAll(userId, categoryId, filter.dateFrom(), filter.dateTo(), pageable));
     }
 
     @GetMapping("/summary")

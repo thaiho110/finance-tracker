@@ -1,5 +1,7 @@
 package com.financetracker.transaction.intake;
 
+import com.financetracker.category.model.CategoryRef;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -10,7 +12,7 @@ import java.time.LocalDate;
  * @param rawDescription description as written on the source
  * @param cleanMerchant  display form of the merchant (see {@code CategorizationService.cleanMerchant})
  * @param amount         amount as written, or null when the source had none
- * @param category       detected category; "Other" when nothing matched
+ * @param category       detected category; the system category "Other" when nothing matched
  * @param duplicate      true when a saved transaction or an earlier entry in the same upload has the
  *                       same amount within the duplicate window
  */
@@ -19,6 +21,6 @@ public record DraftTransaction(
     String rawDescription,
     String cleanMerchant,
     BigDecimal amount,
-    String category,
+    CategoryRef category,
     boolean duplicate
 ) { }

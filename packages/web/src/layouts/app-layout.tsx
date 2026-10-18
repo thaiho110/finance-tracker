@@ -11,6 +11,8 @@ import {
   Users,
   ShieldCheck,
   ScrollText,
+  Tags,
+  FolderCog,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { logout as logoutAction } from '@/store/auth-slice';
@@ -34,11 +36,13 @@ const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, anyOf: ['DASHBOARD_VIEW'] },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight, anyOf: ['TRANSACTION_READ'] },
   { to: '/upload', label: 'Import', icon: Upload, anyOf: ['CSV_IMPORT', 'RECEIPT_SCAN'] },
+  { to: '/settings/categories', label: 'Categories', icon: Tags, anyOf: ['CATEGORY_READ'] },
 ];
 
 const adminItems: NavItem[] = [
   { to: '/admin/users', label: 'Users', icon: Users, anyOf: ['USER_READ'] },
   { to: '/admin/roles', label: 'Roles & features', icon: ShieldCheck, anyOf: ['USER_READ'] },
+  { to: '/admin/categories', label: 'Default categories', icon: FolderCog, anyOf: ['CATEGORY_ADMIN'] },
   { to: '/admin/audit', label: 'Audit log', icon: ScrollText, anyOf: ['AUDIT_READ'] },
 ];
 
@@ -50,6 +54,8 @@ const pageTitles: Record<string, string> = {
   '/admin/users': 'Users',
   '/admin/roles': 'Roles & features',
   '/admin/audit': 'Audit log',
+  '/admin/categories': 'Default categories',
+  '/settings/categories': 'Categories',
 };
 
 export function AppLayout() {

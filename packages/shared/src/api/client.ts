@@ -1,5 +1,13 @@
 import type {
   AuthResponse,
+  Category,
+  CategoryChanges,
+  CategoryDeleteResult,
+  CategoryInput,
+  CategoryRule,
+  CategoryRuleInput,
+  CategoryRulePreview,
+  CategoryRuleSaveResult,
   ClientId,
   Credentials,
   Page,
@@ -156,7 +164,28 @@ export class ApiClient {
   };
 
   readonly categories = {
-    list: (): Promise<string[]> => this.request({ url: '/categories' }),
+    /** Categories the user can pick; `includeArchived` also returns archived and hidden ones (settings). */
+    list: (includeArchived = false): Promise<Category[]> =>
+      this.request({ url: '/categories', params: includeArchived ? { includeArchived: true } : undefined }),
+    create: (input: CategoryInput): Promise<Category> =>
+      this.request({ url: '/categories', method: 'POST', body: input }),
+    update: (id: string, changes: CategoryChanges): Promise<Category> =>
+      this.request({ url: `/categories/${id}`, method: 'PUT', body: changes }),
+    /** Deletes an unused category or archives a used one; `moveTo` moves its transactions first. */
+    remove: (id: string, moveTo?: string): Promise<CategoryDeleteResult> =>
+      this.request({ url: `/categories/${id}`, method: 'DELETE', params: moveTo ? { moveTo } : undefined }),
+    setHidden: async (id: string, hidden: boolean): Promise<void> => {
+      await this.request({ url: `/categories/${id}/hide`, method: hidden ? 'POST' : 'DELETE' });
+    },
+    rules: (scope: 'own' | 'system' = 'own'): Promise<CategoryRule[]> =>
+      this.request({ url: '/categories/rules', params: { scope } }),
+    previewRule: (keyword: string): Promise<CategoryRulePreview> =>
+      this.request({ url: '/categories/rules/preview', params: { keyword } }),
+    saveRule: (input: CategoryRuleInput): Promise<CategoryRuleSaveResult> =>
+      this.request({ url: '/categories/rules', method: 'POST', body: input }),
+    removeRule: async (id: string): Promise<void> => {
+      await this.request({ url: `/categories/rules/${id}`, method: 'DELETE' });
+    },
   };
 
   /* ───────── internals ───────── */

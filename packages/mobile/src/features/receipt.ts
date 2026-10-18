@@ -11,7 +11,7 @@ export interface ReceiptForm {
   merchant: string;
   date: string;
   amount: string;
-  category: string;
+  categoryId: string;
 }
 
 /** Same wording as the web app's receipt warnings. */
@@ -29,7 +29,7 @@ export function formFromReceipt(receipt: ParsedReceipt, today: string = todayIso
     merchant: receipt.merchant ?? '',
     date: receipt.date ?? today,
     amount: receipt.totalAmount != null ? String(Math.abs(receipt.totalAmount)) : '',
-    category: receipt.category || 'Other',
+    categoryId: receipt.categoryId,
   };
 }
 
@@ -56,7 +56,7 @@ export function receiptToTransaction(form: ReceiptForm, receipt: ParsedReceipt):
     rawDescription: merchant,
     cleanMerchant: merchant,
     amount: parseAmountInput(form.amount) ?? 0,
-    category: form.category,
+    categoryId: form.categoryId,
     sourceType: 'OCR',
     lineItems: receipt.lineItems
       .filter((line) => line.item.trim() && isValidAmount(Math.abs(line.price)))

@@ -26,7 +26,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "transactions", indexes = {
     @Index(name = "idx_transactions_date", columnList = "date"),
-    @Index(name = "idx_transactions_category", columnList = "category"),
+    @Index(name = "idx_transactions_category_id", columnList = "categoryId"),
     @Index(name = "idx_transactions_merchant", columnList = "cleanMerchant"),
     @Index(name = "idx_transactions_created_by", columnList = "createdBy")
 })
@@ -54,8 +54,9 @@ public class Transaction {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 
-    @Column(nullable = false)
-    private String category;
+    /** A system category or one of the owner's ({@code categories.id}). */
+    @Column(name = "category_id", nullable = false)
+    private UUID categoryId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "source_type", nullable = false, length = 10)

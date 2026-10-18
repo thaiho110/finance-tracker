@@ -6,6 +6,8 @@ export type Permission =
   | 'CSV_IMPORT'
   | 'RECEIPT_SCAN'
   | 'CATEGORY_READ'
+  | 'CATEGORY_WRITE'
+  | 'CATEGORY_ADMIN'
   | 'USER_READ'
   | 'USER_SUSPEND'
   | 'USER_CREATE'

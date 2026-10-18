@@ -7,15 +7,16 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useParseCsvMutation, useBatchSaveTransactionsMutation, useProcessOcrMutation } from '@/store/api/transaction-api';
+import type { Category } from '@finance-tracker/shared';
 import { useGetCategoriesQuery } from '@/store/api/category-api';
+import { CategorySelect } from '@/components/category/category-select';
+import { useAlwaysUsePrompt } from '@/components/category/use-always-use';
 import { useCan } from '@/lib/permissions';
 import { NotAvailable } from '@/components/guards/require-permission';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CategoryBadge } from '@/components/ui/category-badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrencyFull, formatDateISO } from '@/lib/utils';
 import { cn } from 'cn';
@@ -32,6 +33,7 @@ interface ParsedRow {
   rawDescription: string;
   cleanMerchant: string;
   amount: number;
+  categoryId: string;
   category: string;
   isDuplicate: boolean;
 }
@@ -45,6 +47,7 @@ interface OcrResult {
   merchant: string | null;
   date: string | null;
   totalAmount: number | null;
+  categoryId: string | null;
   category: string | null;
   isDuplicate: boolean;
   lineItems: LineItem[];
@@ -55,7 +58,7 @@ interface ReceiptForm {
   merchant: string;
   date: string;
   amount: number;
-  category: string;
+  categoryId: string;
 }
 
 /* ───────────────────────── helpers ───────────────────────── */
@@ -248,32 +251,6 @@ function SaveBar({ title, subtitle, subtitleTone = 'muted', children }: {
   );
 }
 
-function CategorySelect({ value, categories, onChange, className }: {
-  value: string;
-  categories: string[];
-  onChange: (v: string) => void;
-  className?: string;
-}) {
-  const options = useMemo(
-    () => (value && !categories.includes(value) ? [value, ...categories] : categories),
-    [value, categories]
-  );
-  return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className={cn('h-9 w-full bg-bg-surface', className)}>
-        <SelectValue placeholder="Choose category">
-          {value ? <CategoryBadge category={value} /> : null}
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((c) => (
-          <SelectItem key={c} value={c}><CategoryBadge category={c} /></SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
 /* ───────────────────────── page ───────────────────────── */
 
 export default function UploadPage() {
@@ -303,8 +280,9 @@ export default function UploadPage() {
 
 /* ───────────────────────── CSV tab ───────────────────────── */
 
-function CsvImport({ categories }: { categories: string[] }) {
+function CsvImport({ categories }: { categories: Category[] }) {
   const navigate = useNavigate();
+  const alwaysUse = useAlwaysUsePrompt();
   const [file, setFile] = useState<File | null>(null);
   const [lastSavedFile, setLastSavedFile] = useState<File | null>(null);
   const [rows, setRows] = useState<ParsedRow[]>([]);
@@ -393,7 +371,7 @@ function CsvImport({ categories }: { categories: string[] }) {
         rawDescription: r.rawDescription,
         cleanMerchant: r.cleanMerchant.trim(),
         amount: r.amount,
-        category: r.category,
+        categoryId: r.categoryId,
         sourceType: 'CSV',
       }))).unwrap();
       setSavedCount(rows.length);
@@ -585,9 +563,13 @@ function CsvImport({ categories }: { categories: string[] }) {
                     </td>
                     <td className="td-base py-1.5 px-2">
                       <CategorySelect
-                        value={row.category}
+                        value={row.categoryId}
                         categories={categories}
-                        onChange={(v) => updateRow(row.rowIndex, { category: v })}
+                        current={{ id: row.categoryId, name: row.category }}
+                        onChange={(c) => {
+                          updateRow(row.rowIndex, { categoryId: c.id, category: c.name });
+                          alwaysUse(row.cleanMerchant || row.rawDescription, c);
+                        }}
                         className="h-8"
                       />
                     </td>
@@ -647,8 +629,9 @@ function CsvImport({ categories }: { categories: string[] }) {
 
 /* ───────────────────────── Receipt tab ───────────────────────── */
 
-function ReceiptScan({ categories }: { categories: string[] }) {
+function ReceiptScan({ categories }: { categories: Category[] }) {
   const navigate = useNavigate();
+  const alwaysUse = useAlwaysUsePrompt();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [result, setResult] = useState<OcrResult | null>(null);
@@ -695,7 +678,7 @@ function ReceiptScan({ categories }: { categories: string[] }) {
         merchant: normalized.merchant || '',
         date: normalized.date ? formatDateISO(normalized.date) : todayISO(),
         amount: Math.abs(Number(normalized.totalAmount) || 0),
-        category: normalized.category || 'Other',
+        categoryId: normalized.categoryId || '',
       });
     } catch (err: any) {
       const code: string | undefined = err?.status === 413 ? 'FILE_TOO_LARGE' : err?.data?.code;
@@ -744,7 +727,7 @@ function ReceiptScan({ categories }: { categories: string[] }) {
         rawDescription: form.merchant.trim(),
         cleanMerchant: form.merchant.trim(),
         amount: form.amount,
-        category: form.category,
+        categoryId: form.categoryId,
         sourceType: 'OCR',
         lineItems: (result?.lineItems || [])
           .filter((li) => li.item?.trim())
@@ -788,7 +771,7 @@ function ReceiptScan({ categories }: { categories: string[] }) {
   const lineItems = result?.lineItems || [];
   const itemsTotal = lineItems.reduce((sum, li) => sum + (Number(li.price) || 0), 0);
   const itemsMatch = form ? Math.round(itemsTotal) === Math.round(form.amount) : false;
-  const canSave = !!form && !!form.merchant.trim() && !!form.date && form.amount > 0 && !!form.category;
+  const canSave = !!form && !!form.merchant.trim() && !!form.date && form.amount > 0 && !!form.categoryId;
 
   const missing: Partial<Record<keyof ReceiptForm, boolean>> = {
     merchant: !result?.merchant,
@@ -908,8 +891,13 @@ function ReceiptScan({ categories }: { categories: string[] }) {
                   <Input id="r-total" type="number" inputMode="numeric" min={0} step={1} value={form.amount} aria-invalid={!(form.amount > 0)} onChange={(e) => setField('amount', Math.abs(Number(e.target.value) || 0))} className="text-mono" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-1.5"><Label className="text-sm font-medium text-text-default">Category</Label>{autoMark('category')}</div>
-                  <CategorySelect value={form.category} categories={categories} onChange={(v) => setField('category', v)} />
+                  <div className="flex items-center gap-1.5"><Label className="text-sm font-medium text-text-default">Category</Label>{autoMark('categoryId')}</div>
+                  <CategorySelect
+                    value={form.categoryId}
+                    categories={categories}
+                    current={result?.categoryId ? { id: result.categoryId, name: result.category ?? '' } : undefined}
+                    onChange={(c) => { setField('categoryId', c.id); alwaysUse(form.merchant, c); }}
+                  />
                 </div>
               </div>
 
