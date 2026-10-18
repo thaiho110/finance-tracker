@@ -6,71 +6,88 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
+import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
- * DB-backed categorization service.
- * Merchant keywords and their categories are stored in the category_mappings table
- * and cached on startup for fast matching. The frontend can query categories via
- * the CategoryController API.
+ * Turns a merchant name into a category using the keyword table ({@code category_mappings}).
+ *
+ * <p>Callers pass the merchant exactly as it appears on a statement or receipt. Matching ignores
+ * case, Vietnamese accents, store numbers and long ids; a keyword must appear as a whole word
+ * ({@code GAS} does not match {@code VEGAS}); when several keywords match, the longest wins.
+ * Mappings are cached at startup; call {@link #refreshCache()} after changing them.
  */
 @Service
 @RequiredArgsConstructor
 public class CategorizationService {
 
+    /** Category for merchants that match no keyword. */
+    public static final String DEFAULT_CATEGORY = "Other";
+
+    private static final Pattern STORE_NUMBER = Pattern.compile("#\\d+");
+    private static final Pattern LONG_NUMBER = Pattern.compile("\\b\\d{10,}\\b");
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
+    private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{M}+");
+
     private final CategoryMappingRepository repository;
 
-    // In-memory cache refreshed on startup
-    private final List<CachedMapping> cache = new CopyOnWriteArrayList<>();
+    /** Longest keyword first, so "TARGET OPTICAL" is tried before "TARGET". Replaced as a whole on refresh. */
+    private volatile List<CachedMapping> cache = List.of();
 
     @PostConstruct
     public void refreshCache() {
-        List<CategoryMapping> mappings = repository.findAll();
-        cache.clear();
-        for (CategoryMapping mapping : mappings) {
-            cache.add(new CachedMapping(mapping.getKeyword(), mapping.getCategory()));
-        }
+        cache = repository.findAll().stream()
+            .filter(mapping -> mapping.getKeyword() != null && !mapping.getKeyword().isBlank())
+            .map(CategorizationService::toCached)
+            .sorted(Comparator.comparingInt((CachedMapping mapping) -> mapping.normalizedKeyword().length()).reversed())
+            .toList();
     }
 
     /**
-     * Clean a raw merchant string by removing store numbers, transaction IDs,
-     * and normalizing whitespace.
+     * Display form of a merchant: upper case, store numbers ("#12345") and long transaction ids removed,
+     * whitespace collapsed. Accents are kept.
      */
     public String cleanMerchant(String raw) {
-        if (raw == null) {
-            return "";
-        }
-        return raw.toUpperCase()
-            .replaceAll("#\\d+", "")
-            .replaceAll("\\b\\d{10,}\\b", "")
-            .replaceAll("\\s+", " ")
-            .trim();
+        String upper = raw == null ? "" : raw.toUpperCase(Locale.ROOT);
+        String withoutIds = LONG_NUMBER.matcher(STORE_NUMBER.matcher(upper).replaceAll("")).replaceAll("");
+        return WHITESPACE.matcher(withoutIds).replaceAll(" ").trim();
     }
 
     /**
-     * Categorize a cleaned merchant name by matching against the DB-backed keyword map.
-     * Matches longest keywords first to avoid false positives (e.g., "MCDONALDS" before "MCDONALD'S").
+     * Category for a merchant as written on the source ("STARBUCKS #12345", "Phúc Long Coffee").
+     *
+     * @return the category of the longest whole-word keyword match, or {@value #DEFAULT_CATEGORY}
      */
-    public String categorize(String cleanedMerchant) {
-        if (cleanedMerchant == null || cleanedMerchant.isBlank()) {
-            return "Other";
-        }
-
-        for (CachedMapping mapping : cache) {
-            if (cleanedMerchant.contains(mapping.keyword())) {
-                return mapping.category();
-            }
-        }
-        return "Other";
+    public String categorize(String merchant) {
+        String text = merchant == null ? "" : normalize(cleanMerchant(merchant));
+        return cache.stream()
+            .filter(mapping -> mapping.pattern().matcher(text).find())
+            .map(CachedMapping::category)
+            .findFirst()
+            .orElse(DEFAULT_CATEGORY);
     }
 
-    /**
-     * Merchant keywords known from the category mappings, used to recognize the merchant on scanned receipts.
-     */
+    /** Merchant keywords known from the mappings, used to recognize the merchant on scanned receipts. */
     public List<String> knownMerchantKeywords() {
         return cache.stream().map(CachedMapping::keyword).toList();
     }
 
-    private record CachedMapping(String keyword, String category) { }
+    /** Upper case, accents removed, Đ→D, single spaces: the form keywords and merchants are compared in. */
+    static String normalize(String text) {
+        String withoutDStroke = text.replace('Đ', 'D').replace('đ', 'd');
+        String decomposed = Normalizer.normalize(withoutDStroke, Normalizer.Form.NFD);
+        String withoutMarks = COMBINING_MARKS.matcher(decomposed).replaceAll("");
+        return WHITESPACE.matcher(withoutMarks.toUpperCase(Locale.ROOT)).replaceAll(" ").strip();
+    }
+
+    private static CachedMapping toCached(CategoryMapping mapping) {
+        String key = normalize(mapping.getKeyword());
+        Pattern wholeWord = Pattern.compile("(?<![\\p{L}\\p{N}])" + Pattern.quote(key) + "(?![\\p{L}\\p{N}])");
+        return new CachedMapping(mapping.getKeyword(), key, mapping.getCategory(), wholeWord);
+    }
+
+    private record CachedMapping(String keyword, String normalizedKeyword, String category, Pattern pattern) { }
 }

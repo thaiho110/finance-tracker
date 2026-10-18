@@ -29,7 +29,11 @@ class CategorizationServiceTest {
             CategoryMapping.builder().keyword("STARBUCKS").category("Coffee Shop").build(),
             CategoryMapping.builder().keyword("AMAZON").category("Online Shopping").build(),
             CategoryMapping.builder().keyword("UBER").category("Transportation").build(),
-            CategoryMapping.builder().keyword("MCDONALDS").category("Fast Food").build()
+            CategoryMapping.builder().keyword("MCDONALDS").category("Fast Food").build(),
+            CategoryMapping.builder().keyword("TARGET").category("Shopping").build(),
+            CategoryMapping.builder().keyword("TARGET OPTICAL").category("Health").build(),
+            CategoryMapping.builder().keyword("GAS").category("Transportation").build(),
+            CategoryMapping.builder().keyword("PHÚC LONG").category("Coffee Shop").build()
         );
         when(repository.findAll()).thenReturn(mappings);
         categorizationService.refreshCache();
@@ -68,6 +72,28 @@ class CategorizationServiceTest {
     @DisplayName("Should clean merchant name by normalizing whitespace")
     void shouldNormalizeWhitespace() {
         assertThat(categorizationService.cleanMerchant("  AMAZON   PRIME  ")).isEqualTo("AMAZON PRIME");
+    }
+
+    @Test
+    @DisplayName("Should prefer the longest matching keyword")
+    void shouldPreferLongestKeyword() {
+        assertThat(categorizationService.categorize("TARGET OPTICAL #88")).isEqualTo("Health");
+        assertThat(categorizationService.categorize("TARGET STORE")).isEqualTo("Shopping");
+    }
+
+    @Test
+    @DisplayName("Should match keywords only as whole words")
+    void shouldMatchWholeWordsOnly() {
+        assertThat(categorizationService.categorize("VEGAS BAR")).isEqualTo("Other");
+        assertThat(categorizationService.categorize("SHELL GAS STATION")).isEqualTo("Transportation");
+    }
+
+    @Test
+    @DisplayName("Should ignore case and Vietnamese accents")
+    void shouldIgnoreCaseAndAccents() {
+        assertThat(categorizationService.categorize("Phuc Long Coffee & Tea")).isEqualTo("Coffee Shop");
+        assertThat(categorizationService.categorize("phúc long")).isEqualTo("Coffee Shop");
+        assertThat(categorizationService.categorize("starbucks #12345")).isEqualTo("Coffee Shop");
     }
 
     @Test

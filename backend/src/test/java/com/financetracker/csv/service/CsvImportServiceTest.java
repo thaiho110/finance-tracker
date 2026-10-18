@@ -42,9 +42,9 @@ class CsvImportServiceTest {
             "text/csv", csv.getBytes());
 
         when(categorizationService.cleanMerchant("STARBUCKS #12345")).thenReturn("STARBUCKS");
-        when(categorizationService.categorize("STARBUCKS")).thenReturn("Coffee Shop");
+        when(categorizationService.categorize("STARBUCKS #12345")).thenReturn("Coffee Shop");
         when(categorizationService.cleanMerchant("AMAZON PURCHASE")).thenReturn("AMAZON");
-        when(categorizationService.categorize("AMAZON")).thenReturn("Online Shopping");
+        when(categorizationService.categorize("AMAZON PURCHASE")).thenReturn("Online Shopping");
         when(deduplicationService.isDuplicate(any(), any(), any())).thenReturn(false);
 
         List<ParsedTransactionResponse> results = csvImportService.parse(file, UUID.randomUUID());
@@ -71,7 +71,7 @@ class CsvImportServiceTest {
             "text/csv", csv.getBytes());
 
         when(categorizationService.cleanMerchant("STARBUCKS #12345")).thenReturn("STARBUCKS");
-        when(categorizationService.categorize("STARBUCKS")).thenReturn("Coffee Shop");
+        when(categorizationService.categorize("STARBUCKS #12345")).thenReturn("Coffee Shop");
         when(deduplicationService.isDuplicate(any(), any(), any())).thenReturn(false);
 
         List<ParsedTransactionResponse> results = csvImportService.parse(file, UUID.randomUUID());

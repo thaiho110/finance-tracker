@@ -39,7 +39,6 @@ public class OcrService {
     /** Fewer letters/digits than this means OCR could not read the photo. */
     private static final int MIN_TEXT_CHARACTERS = 20;
     private static final ZoneId RECEIPT_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
-    private static final String DEFAULT_CATEGORY = "Other";
 
     private static final String METRIC_RECEIPTS = "finance.ocr.receipts";
     private static final String METRIC_DURATION = "finance.ocr.duration";
@@ -193,10 +192,7 @@ public class OcrService {
     // ───────────────────────── response ─────────────────────────
 
     private ParsedReceiptResponse toResponse(ExtractedReceipt receipt, UUID userId) {
-        String category = receipt.merchant() == null
-            ? DEFAULT_CATEGORY
-            : categorizationService.categorize(
-                categorizationService.cleanMerchant(ReceiptTextParser.normalizeForMatching(receipt.merchant())));
+        String category = categorizationService.categorize(receipt.merchant());
         boolean isDuplicate = receipt.date() != null && receipt.total() != null
             && deduplicationService.isDuplicate(userId, receipt.date(), receipt.total());
         List<ParsedReceiptResponse.LineItem> lineItems = receipt.lineItems().stream()

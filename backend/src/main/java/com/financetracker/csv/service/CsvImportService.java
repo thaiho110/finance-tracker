@@ -90,7 +90,7 @@ public class CsvImportService {
                                                      UUID userId, int rowIndex) {
         String rawDescription = getField(record, headerIndex, "rawDescription", "");
         String cleanMerchant = categorizationService.cleanMerchant(rawDescription);
-        String category = categorizationService.categorize(cleanMerchant);
+        String category = categorizationService.categorize(rawDescription);
         LocalDate date = parseDate(getField(record, headerIndex, "date", ""));
         BigDecimal amount = parseAmount(getField(record, headerIndex, "amount", "0"));
         boolean isDuplicate = deduplicationService.isDuplicate(userId, date, amount);
