@@ -8,7 +8,6 @@ import {
   Moon,
   Sun,
   Menu,
-  Wallet,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { logout as logoutAction } from '@/store/auth-slice';
@@ -83,9 +82,8 @@ export function AppLayout() {
       >
         {/* Brand header */}
         <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-5">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-brand-primary shadow-sm">
-            <Wallet className="size-5 text-text-on-primary" />
-          </div>
+          {/* Brand mark (plan/design/brand). The green tile is part of the SVG; alt="" because the name sits next to it. */}
+          <img src="/mark.svg" alt="" className="size-9 shrink-0" />
           <div>
             <span className="text-base font-semibold tracking-tight text-sidebar-foreground">Finance Tracker</span>
             <p className="-mt-0.5 text-[11px] text-text-muted">Personal Finance</p>

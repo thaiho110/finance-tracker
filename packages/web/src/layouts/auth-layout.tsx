@@ -1,5 +1,4 @@
 import { Outlet } from 'react-router-dom';
-import { Wallet } from 'lucide-react';
 
 export function AuthLayout() {
   return (
@@ -13,9 +12,8 @@ export function AuthLayout() {
       <div className="relative w-full max-w-[400px]">
         {/* Brand */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-primary shadow-lg shadow-brand-primary/20">
-            <Wallet className="h-7 w-7 text-text-on-primary" />
-          </div>
+          {/* Brand mark (plan/design/brand): no shadow or wrapper, per the logo rules. */}
+          <img src="/mark.svg" alt="" className="mx-auto mb-4 size-14" />
           <h1 className="text-[28px] font-semibold leading-9 tracking-tight text-text-default">Finance Tracker</h1>
           <p className="mt-1 text-sm text-text-muted">Track your spending effortlessly</p>
         </div>
