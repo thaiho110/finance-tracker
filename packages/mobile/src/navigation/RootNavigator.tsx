@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSession } from '../session/SessionContext';
 import { Centered } from '../components/ui';
 import { LoginScreen } from '../screens/LoginScreen';
+import { OverviewScreen } from '../screens/OverviewScreen';
 import { TransactionsScreen } from '../screens/TransactionsScreen';
 import { TransactionDetailScreen } from '../screens/TransactionDetailScreen';
 import { ScanReceiptScreen } from '../screens/ScanReceiptScreen';
@@ -40,6 +41,9 @@ function MainTabs() {
   const { can } = useSession();
   return (
     <Tabs.Navigator screenOptions={{ ...headerStyle, tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.textMuted }}>
+      {can('DASHBOARD_VIEW') && (
+        <Tabs.Screen name="Overview" component={OverviewScreen} options={{ title: 'Overview', tabBarIcon: tabIcon('◔') }} />
+      )}
       {can('TRANSACTION_READ') && (
         <Tabs.Screen name="Transactions" component={TransactionsStack} options={{ headerShown: false, tabBarIcon: tabIcon('≡') }} />
       )}
