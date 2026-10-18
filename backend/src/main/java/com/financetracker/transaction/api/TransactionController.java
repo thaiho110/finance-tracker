@@ -5,6 +5,7 @@ import com.financetracker.auth.security.CurrentUser;
 import com.financetracker.transaction.dto.TransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
 import com.financetracker.transaction.dto.TransactionSummaryResponse;
+import com.financetracker.transaction.dto.TransactionUpdateRequest;
 import com.financetracker.transaction.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -85,7 +86,7 @@ public class TransactionController {
     @Operation(summary = "Update an existing transaction")
     public ResponseEntity<TransactionResponse> updateTransaction(
             @PathVariable UUID id,
-            @Valid @RequestBody TransactionRequest request,
+            @Valid @RequestBody TransactionUpdateRequest request,
             @CurrentUser AuthenticatedUser user) {
         UUID userId = user.getId();
         return ResponseEntity.ok(transactionService.update(id, request, userId));

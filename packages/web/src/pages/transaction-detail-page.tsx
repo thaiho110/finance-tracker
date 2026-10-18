@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrencyFull, formatDateISO } from '@/lib/utils';
+import { apiErrorMessage } from '@/lib/api-error';
 
 const SOURCE_LABELS: Record<string, string> = { CSV: 'CSV', OCR: 'Receipt', MANUAL: 'Manual' };
 
@@ -70,7 +71,6 @@ export default function TransactionDetailPage() {
       cleanMerchant: tx.cleanMerchant,
       amount: Math.abs(Number(tx.amount) || 0),
       category: tx.category,
-      sourceType: tx.sourceType,
     });
     setEditing(true);
   };
@@ -84,7 +84,7 @@ export default function TransactionDetailPage() {
       setEditing(false);
       toast.success('Transaction updated');
     } catch (err: any) {
-      toast.error(err?.data?.detail || err?.data?.message || 'Failed to update transaction');
+      toast.error(apiErrorMessage(err, 'Failed to update transaction'));
     }
   };
 

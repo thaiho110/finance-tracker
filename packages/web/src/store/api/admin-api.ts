@@ -126,8 +126,4 @@ export function humanize(code: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/** Problem-detail message from an RTK Query error, or a fallback. */
-export function errorMessage(err: unknown, fallback: string): string {
-  const data = (err as { data?: { detail?: string } } | undefined)?.data;
-  return data?.detail || fallback;
-}
+export { apiErrorMessage as errorMessage } from '@/lib/api-error';

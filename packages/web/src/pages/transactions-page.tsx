@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { formatCurrencyFull, formatDateShort, formatDateISO, getCategoryTone } from '@/lib/utils';
 import { cn } from 'cn';
+import { apiErrorMessage } from '@/lib/api-error';
 
 const PAGE_SIZES = [10, 25, 50];
 
@@ -57,13 +58,25 @@ export default function TransactionsPage() {
     setEditForm({ date: formatDateISO(tx.date), rawDescription: tx.rawDescription, cleanMerchant: tx.cleanMerchant, amount: tx.amount, category: tx.category });
   };
 
+  const canSave = !!editForm && !!editForm.date && !!editForm.cleanMerchant?.trim() && editForm.amount > 0 && !!editForm.category;
+
   const handleSave = async () => {
-    if (!editTx || !editForm) return;
+    if (!editTx || !editForm || !canSave) return;
     try {
-      await updateTransaction({ id: editTx.id, data: editForm }).unwrap();
+      // Only the correctable fields; where the transaction came from (CSV, receipt) never changes.
+      await updateTransaction({
+        id: editTx.id,
+        data: {
+          date: editForm.date,
+          rawDescription: editForm.rawDescription,
+          cleanMerchant: editForm.cleanMerchant.trim(),
+          amount: Math.abs(Number(editForm.amount) || 0),
+          category: editForm.category,
+        },
+      }).unwrap();
       setEditTx(null); setEditForm(null);
       toast.success('Transaction updated');
-    } catch (err: any) { toast.error(err?.data?.detail || 'Failed to update'); }
+    } catch (err) { toast.error(apiErrorMessage(err, 'Failed to update')); }
   };
 
   const from = page * size + 1;
@@ -237,7 +250,7 @@ export default function TransactionsPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label className="field-label">Amount</Label>
-                  <Input type="number" step="0.01" value={editForm.amount} onChange={(e) => setEditForm({ ...editForm, amount: parseFloat(e.target.value) || 0 })} className="text-mono" />
+                  <Input type="number" step="0.01" value={editForm.amount} onChange={(e) => setEditForm({ ...editForm, amount: Math.abs(parseFloat(e.target.value) || 0) })} className="text-mono" />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -262,7 +275,7 @@ export default function TransactionsPage() {
           )}
           <DialogFooter>
             <Button variant="secondary" onClick={() => { setEditTx(null); setEditForm(null); }}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>{isSaving ? 'Saving…' : 'Save changes'}</Button>
+            <Button onClick={handleSave} disabled={isSaving || !canSave}>{isSaving ? 'Saving…' : 'Save changes'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

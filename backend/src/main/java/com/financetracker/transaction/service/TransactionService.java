@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.financetracker.transaction.dto.TransactionSummaryResponse;
+import com.financetracker.transaction.dto.TransactionUpdateRequest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -84,14 +85,17 @@ public class TransactionService {
     }
 
     @Transactional
-    public TransactionResponse update(UUID id, TransactionRequest request, UUID userId) {
+    public TransactionResponse update(UUID id, TransactionUpdateRequest request, UUID userId) {
         Transaction transaction = owned(id, userId);
+        String merchant = request.cleanMerchant().strip();
+        String description = request.rawDescription() == null || request.rawDescription().isBlank()
+            ? merchant
+            : request.rawDescription().strip();
         transaction.setDate(request.date());
-        transaction.setRawDescription(request.rawDescription());
-        transaction.setCleanMerchant(request.cleanMerchant());
+        transaction.setRawDescription(description);
+        transaction.setCleanMerchant(merchant);
         transaction.setAmount(request.amount());
         transaction.setCategory(request.category());
-        transaction.setSourceType(SourceType.valueOf(request.sourceType()));
 
         Transaction saved = transactionRepository.save(transaction);
         return toResponse(saved);

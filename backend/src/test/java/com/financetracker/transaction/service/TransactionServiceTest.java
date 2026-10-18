@@ -3,6 +3,7 @@ package com.financetracker.transaction.service;
 import com.financetracker.transaction.dto.ReceiptLineItemRequest;
 import com.financetracker.transaction.dto.TransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
+import com.financetracker.transaction.dto.TransactionUpdateRequest;
 import com.financetracker.transaction.model.ReceiptItem;
 import com.financetracker.transaction.model.SourceType;
 import com.financetracker.transaction.model.Transaction;
@@ -140,7 +141,9 @@ class TransactionServiceTest {
 
         assertThatThrownBy(() -> transactionService.findById(transactionId, otherUser))
             .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
-        assertThatThrownBy(() -> transactionService.update(transactionId, testRequest, otherUser))
+        TransactionUpdateRequest correction = new TransactionUpdateRequest(
+            LocalDate.of(2024, 1, 15), null, "STARBUCKS", BigDecimal.TEN, "Coffee Shop");
+        assertThatThrownBy(() -> transactionService.update(transactionId, correction, otherUser))
             .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
         assertThatThrownBy(() -> transactionService.delete(transactionId, otherUser))
             .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
@@ -154,20 +157,34 @@ class TransactionServiceTest {
         when(transactionRepository.findByIdAndCreatedBy(transactionId, userId)).thenReturn(Optional.of(testTransaction));
         when(transactionRepository.save(any())).thenReturn(testTransaction);
 
-        TransactionRequest updateRequest = new TransactionRequest(
+        TransactionUpdateRequest updateRequest = new TransactionUpdateRequest(
             LocalDate.of(2024, 2, 1),
             "AMAZON PURCHASE",
             "AMAZON",
             BigDecimal.valueOf(99.99),
-            "Online Shopping",
-            "MANUAL",
-            null
+            "Online Shopping"
         );
 
         TransactionResponse response = transactionService.update(transactionId, updateRequest, userId);
 
         assertThat(response.cleanMerchant()).isEqualTo("AMAZON");
         assertThat(response.amount()).isEqualByComparingTo(BigDecimal.valueOf(99.99));
+    }
+
+    @Test
+    @DisplayName("Should correct a scanned receipt's amount without touching where it came from")
+    void shouldCorrectReceiptAmount() {
+        testTransaction.setSourceType(SourceType.OCR);
+        when(transactionRepository.findByIdAndCreatedBy(transactionId, userId)).thenReturn(Optional.of(testTransaction));
+        when(transactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        TransactionResponse response = transactionService.update(transactionId,
+            new TransactionUpdateRequest(LocalDate.of(2024, 1, 15), "  ", "Highlands Coffee", BigDecimal.valueOf(55_000), "Coffee Shop"),
+            userId);
+
+        assertThat(response.amount()).isEqualByComparingTo("55000");
+        assertThat(response.sourceType()).isEqualTo("OCR");
+        assertThat(response.rawDescription()).isEqualTo("Highlands Coffee");
     }
 
     @Test
