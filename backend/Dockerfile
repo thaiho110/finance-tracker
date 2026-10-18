@@ -13,16 +13,12 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-# Download OpenTelemetry Java Agent
-ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
+# OpenTelemetry Java agent, pinned so a new release can't change behaviour between builds
+ARG OTEL_AGENT_VERSION=2.32.0
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_AGENT_VERSION}/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
 
 COPY --from=build /app/build/libs/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", \
-    "-javaagent:/app/opentelemetry-javaagent.jar", \
-    "-Dotel.service.name=finance-tracker-backend", \
-    "-Dotel.exporter.otlp.endpoint=http://alloy:4317", \
-    "-Dotel.metrics.exporter=otlp", \
-    "-Dotel.traces.exporter=otlp", \
-    "-Dotel.logs.exporter=otlp", \
-    "-jar", "app.jar"]
+# Agent settings come from OTEL_* environment variables (docker-compose.yml). -D flags here would
+# override them, so keep this line free of otel.* properties.
+ENTRYPOINT ["java", "-javaagent:/app/opentelemetry-javaagent.jar", "-jar", "app.jar"]
