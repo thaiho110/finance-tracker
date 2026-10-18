@@ -152,12 +152,10 @@ public class OcrService {
 
         if (receipt.total() == null) {
             String retryText = ocrEngine.recognize(image, ReceiptOcrEngine.Layout.FALLBACK);
-            if (retryText != null) {
-                ExtractedReceipt retry = parse(retryText, knownMerchants);
-                if (fieldsFound(retry) > fieldsFound(receipt)) {
-                    receipt = retry;
-                    text = retryText;
-                }
+            ExtractedReceipt retry = retryText == null ? null : parse(retryText, knownMerchants);
+            if (retry != null && fieldsFound(retry) > fieldsFound(receipt)) {
+                receipt = retry;
+                text = retryText;
             }
         }
 

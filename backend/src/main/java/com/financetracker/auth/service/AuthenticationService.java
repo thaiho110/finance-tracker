@@ -81,7 +81,7 @@ public class AuthenticationService {
         try {
             email = jwtService.extractUsername(refreshToken);
         } catch (JwtException | IllegalArgumentException e) {
-            throw new AuthenticationException("Refresh token is invalid or expired");
+            throw new AuthenticationException("Refresh token is invalid or expired", e);
         }
 
         var user = userRepository.findByEmail(email)

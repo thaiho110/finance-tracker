@@ -50,6 +50,7 @@ class CategoryServiceTest {
     @Mock private CategoryRuleRepository rules;
     @Mock private CategorizationService categorization;
     @Mock private CategoryUsage usage;
+    @Mock private org.springframework.context.ApplicationEventPublisher events;
 
     private CategoryService service;
     private Category other;
@@ -59,7 +60,7 @@ class CategoryServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CategoryService(categories, rules, categorization, usage);
+        service = new CategoryService(categories, rules, categorization, usage, events);
         other = Category.builder().id(UUID.randomUUID()).name("Other").kind(CategoryKind.EXPENSE).build();
         coffee = Category.builder().id(UUID.randomUUID()).name("Coffee Shop").kind(CategoryKind.EXPENSE).build();
         pets = Category.builder().id(UUID.randomUUID()).userId(USER).name("Pets").kind(CategoryKind.EXPENSE).build();

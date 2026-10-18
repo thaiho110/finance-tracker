@@ -26,10 +26,8 @@
     <rule ref="category/java/codestyle.xml/ControlStatementBraces"/>
     <rule ref="category/java/codestyle.xml/FieldDeclarationsShouldBeAtStartOfClass"/>
     <rule ref="category/java/codestyle.xml/ForLoopShouldBeWhileLoop"/>
-    <rule ref="category/java/codestyle.xml/LongVariable"/>
-    <rule ref="category/java/codestyle.xml/OnlyOneReturn"/>
-    <rule ref="category/java/codestyle.xml/ShortClassName"/>
-    <rule ref="category/java/codestyle.xml/ShortMethodName"/>
+    <!-- LongVariable, OnlyOneReturn, ShortClassName and ShortMethodName are intentionally left out: this
+         codebase favours descriptive names, guard-clause returns and short factory names like of()/set(). -->
     <rule ref="category/java/codestyle.xml/UnnecessaryAnnotationValueElement"/>
     <rule ref="category/java/codestyle.xml/UnnecessaryCast"/>
     <rule ref="category/java/codestyle.xml/UnnecessaryConstructor"/>
@@ -59,12 +57,9 @@
     <rule ref="category/java/errorprone.xml/CloseResource"/>
     <rule ref="category/java/errorprone.xml/DoNotTerminateVM"/>
     <rule ref="category/java/errorprone.xml/EmptyCatchBlock"/>
-    <!-- PMD 7.x individual empty control flow rules (EmptyControlStatement was removed) -->
-    <rule ref="category/java/errorprone.xml/EmptyIfStmt"/>
-    <rule ref="category/java/errorprone.xml/EmptyWhileStmt"/>
-    <rule ref="category/java/errorprone.xml/EmptyTryBlock"/>
-    <rule ref="category/java/errorprone.xml/EmptyFinallyBlock"/>
-    <rule ref="category/java/errorprone.xml/EmptySwitchStatements"/>
+    <!-- PMD 7 folded the per-construct empty-block rules into one codestyle rule. -->
+    <rule ref="category/java/codestyle.xml/EmptyControlStatement"/>
+    <rule ref="category/java/codestyle.xml/UnnecessarySemicolon"/>
     <rule ref="category/java/errorprone.xml/EqualsNull"/>
     <rule ref="category/java/errorprone.xml/JUnitStaticSuite"/>
     <rule ref="category/java/errorprone.xml/MissingSerialVersionUID"/>

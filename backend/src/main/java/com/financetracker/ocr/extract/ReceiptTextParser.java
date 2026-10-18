@@ -14,6 +14,9 @@ import java.util.regex.Pattern;
  * Turns OCR text from a Vietnamese retail/F&amp;B receipt into structured fields using plain rules
  * (ADR-014 §4). Pure and deterministic: no I/O, no Spring, "today" is passed in.
  */
+// A rule-based parser is a flat pile of small, independent checks; its class-total branch count is high
+// by nature while every individual method stays simple, so the class-level complexity cap doesn't fit it.
+@SuppressWarnings("PMD.CyclomaticComplexity")
 public final class ReceiptTextParser {
 
     /** Total keywords, most specific first; the first phrase a line contains decides its priority. */

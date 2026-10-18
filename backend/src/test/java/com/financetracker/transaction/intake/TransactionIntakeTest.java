@@ -42,14 +42,14 @@ class TransactionIntakeTest {
     @BeforeEach
     void setUp() {
         lenient().when(categorizationService.cleanMerchant(anyString())).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(categorizationService.categorize(any(), any())).thenReturn(new CategoryRef(java.util.UUID.nameUUIDFromBytes("Other".getBytes()), "Other", CategoryKind.EXPENSE, null));
+        lenient().when(categorizationService.categorize(any(), any())).thenReturn(new CategoryRef(UUID.nameUUIDFromBytes("Other".getBytes()), "Other", CategoryKind.EXPENSE, null));
     }
 
     @Test
     @DisplayName("Should categorize from the description as written")
     void shouldCategorize() {
         when(categorizationService.cleanMerchant("STARBUCKS #12345")).thenReturn("STARBUCKS");
-        when(categorizationService.categorize(userId, "STARBUCKS #12345")).thenReturn(new CategoryRef(java.util.UUID.nameUUIDFromBytes("Coffee Shop".getBytes()), "Coffee Shop", CategoryKind.EXPENSE, null));
+        when(categorizationService.categorize(userId, "STARBUCKS #12345")).thenReturn(new CategoryRef(UUID.nameUUIDFromBytes("Coffee Shop".getBytes()), "Coffee Shop", CategoryKind.EXPENSE, null));
 
         DraftTransaction draft = intake.draft(userId, new RawEntry(SEP_5, "STARBUCKS #12345", new BigDecimal("12.50")));
 

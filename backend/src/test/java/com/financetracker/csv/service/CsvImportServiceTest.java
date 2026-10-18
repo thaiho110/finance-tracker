@@ -39,7 +39,7 @@ class CsvImportServiceTest {
     void setUp() {
         csvImportService = new CsvImportService(new TransactionIntake(categorizationService, deduplicationService));
         lenient().when(categorizationService.cleanMerchant(anyString())).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(categorizationService.categorize(any(), anyString())).thenReturn(new CategoryRef(java.util.UUID.nameUUIDFromBytes("Other".getBytes()), "Other", CategoryKind.EXPENSE, null));
+        lenient().when(categorizationService.categorize(any(), anyString())).thenReturn(new CategoryRef(UUID.nameUUIDFromBytes("Other".getBytes()), "Other", CategoryKind.EXPENSE, null));
         lenient().when(deduplicationService.isDuplicate(any(), any(), any())).thenReturn(false);
     }
 
@@ -52,7 +52,7 @@ class CsvImportServiceTest {
     @DisplayName("Should parse standard CSV with default headers")
     void shouldParseStandardCsv() {
         when(categorizationService.cleanMerchant("STARBUCKS #12345")).thenReturn("STARBUCKS");
-        when(categorizationService.categorize(any(), org.mockito.ArgumentMatchers.eq("STARBUCKS #12345"))).thenReturn(new CategoryRef(java.util.UUID.nameUUIDFromBytes("Coffee Shop".getBytes()), "Coffee Shop", CategoryKind.EXPENSE, null));
+        when(categorizationService.categorize(any(), org.mockito.ArgumentMatchers.eq("STARBUCKS #12345"))).thenReturn(new CategoryRef(UUID.nameUUIDFromBytes("Coffee Shop".getBytes()), "Coffee Shop", CategoryKind.EXPENSE, null));
 
         List<ParsedTransactionResponse> results = parse("""
             date,description,amount

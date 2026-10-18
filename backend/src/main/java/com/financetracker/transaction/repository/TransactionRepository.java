@@ -71,6 +71,30 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
         """)
     List<Transaction> findRecentByCreatedBy(@Param("createdBy") UUID createdBy, Pageable pageable);
 
+    /** Totals per category (transfers excluded) for a date range: id, name, kind, color, total. Used by the overview. */
+    @Query(value = """
+        SELECT c.id, c.name, c.kind, c.color, SUM(t.amount) AS total
+        FROM transactions t
+        JOIN categories c ON c.id = t.category_id
+        WHERE t.created_by = :createdBy AND t.date >= :from AND t.date <= :to AND c.kind <> 'TRANSFER'
+        GROUP BY c.id, c.name, c.kind, c.color
+        """, nativeQuery = true)
+    List<Object[]> categoryTotalsForRange(@Param("createdBy") UUID createdBy,
+                                          @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** Top 5 spending merchants for a date range (expense categories only): clean_merchant, total, count. */
+    @Query(value = """
+        SELECT t.clean_merchant, SUM(t.amount) AS total, COUNT(*) AS cnt
+        FROM transactions t
+        JOIN categories c ON c.id = t.category_id
+        WHERE t.created_by = :createdBy AND t.date >= :from AND t.date <= :to AND c.kind = 'EXPENSE'
+        GROUP BY t.clean_merchant
+        ORDER BY SUM(t.amount) DESC
+        LIMIT 5
+        """, nativeQuery = true)
+    List<Object[]> topMerchantsForRange(@Param("createdBy") UUID createdBy,
+                                        @Param("from") LocalDate from, @Param("to") LocalDate to);
+
     long countByCategoryId(UUID categoryId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)

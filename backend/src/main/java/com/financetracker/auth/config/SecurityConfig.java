@@ -22,6 +22,7 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import static com.financetracker.access.model.Permission.AUDIT_READ;
+import static com.financetracker.access.model.Permission.BUDGETS;
 import static com.financetracker.access.model.Permission.CATEGORY_ADMIN;
 import static com.financetracker.access.model.Permission.CATEGORY_READ;
 import static com.financetracker.access.model.Permission.CATEGORY_WRITE;
@@ -44,7 +45,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final RateLimitingFilter rateLimitingFilter;
-    private final com.financetracker.auth.config.UserDetailsConfig userDetailsService;
+    private final UserDetailsConfig userDetailsService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -79,6 +80,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/transactions/**").hasAuthority(TRANSACTION_WRITE.name())
                 .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").hasAuthority(CATEGORY_READ.name())
                 .requestMatchers("/api/v1/categories/**").hasAuthority(CATEGORY_WRITE.name())
+                .requestMatchers("/api/v1/overview/**").hasAuthority(DASHBOARD_VIEW.name())
+                .requestMatchers("/api/v1/budgets/**").hasAuthority(BUDGETS.name())
 
                 // Administration
                 .requestMatchers("/api/v1/admin/users/*/features/**").hasAuthority(FEATURE_MANAGE.name())
