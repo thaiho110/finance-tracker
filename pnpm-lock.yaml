@@ -184,6 +184,9 @@ importers:
 
   packages/web:
     dependencies:
+      '@doan-labs/peek':
+        specifier: ^1.1.0
+        version: 1.1.0(react@19.3.0)
       '@finance-tracker/shared':
         specifier: workspace:*
         version: link:../shared
@@ -446,6 +449,14 @@ packages:
   '@babel/types@7.29.8':
     resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
+
+  '@doan-labs/peek@1.1.0':
+    resolution: {integrity: sha512-awXMtDKTRHnt+2m0XTkfJ+71q2csd/0w4nWSsYjCPeVoubulgdS7nmRIsi7NZ1sjc6fDm6/TmyY+B6RvvPxy0w==}
+    peerDependencies:
+      react: '>=19'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@dotenvx/dotenvx@1.75.1':
     resolution: {integrity: sha512-/BITOC9dmS/edY2zQwZNicQ059O6RKabtQfyEafV0nGtfYRNHYy1DIPiYVcov40+tob9hfmBnbR963dS+EQ1DQ==}
@@ -3496,6 +3507,10 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
+
+  '@doan-labs/peek@1.1.0(react@19.3.0)':
+    optionalDependencies:
+      react: 19.3.0
 
   '@dotenvx/dotenvx@1.75.1':
     dependencies:

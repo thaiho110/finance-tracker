@@ -8,7 +8,6 @@ import {
   Moon,
   Sun,
   Menu,
-  Wallet,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { logout as logoutAction } from '@/store/auth-slice';
@@ -16,6 +15,7 @@ import { tokenStorage } from '@/lib/token-storage';
 import type { RootState } from '@/store';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Peek } from '@doan-labs/peek';
 import { cn } from 'cn';
 
 const navItems = [
@@ -37,7 +37,7 @@ export function AppLayout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { email } = useSelector((state: RootState) => state.auth);
+  const { id, email } = useSelector((state: RootState) => state.auth);
 
   const pageTitle = useMemo(() => {
     // Match the current path to a title
@@ -82,9 +82,8 @@ export function AppLayout() {
       >
         {/* Brand header */}
         <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-5">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-brand-primary shadow-sm">
-            <Wallet className="size-5 text-text-on-primary" />
-          </div>
+          {/* Brand mark (plan/design/brand). The green tile is part of the SVG; alt="" because the name sits next to it. */}
+          <img src="/mark.svg" alt="" className="size-9 shrink-0" />
           <div>
             <span className="text-base font-semibold tracking-tight text-sidebar-foreground">Finance Tracker</span>
             <p className="-mt-0.5 text-[11px] text-text-muted">Personal Finance</p>
@@ -152,11 +151,25 @@ export function AppLayout() {
 
             {/* User info */}
             <div className="flex items-center gap-2 rounded-lg bg-bg-muted px-3 py-1.5">
-              <Avatar className="size-7">
-                <AvatarFallback className="bg-brand-primary-soft text-xs font-medium text-brand-primary">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              {id ? (
+                // Deterministic avatar seeded by the user id, not the email, so changing email keeps the same face.
+                // Version pinned so library updates don't redraw it.
+                <Peek
+                  name={id}
+                  size={28}
+                  square={false}
+                  frame={dark ? 'ink' : 'paper'}
+                  version={1}
+                  title={false}
+                  className="shrink-0"
+                />
+              ) : (
+                <Avatar className="size-7">
+                  <AvatarFallback className="bg-brand-primary-soft text-xs font-medium text-brand-primary">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              )}
               <span className="hidden text-sm text-text-muted sm:inline">{email}</span>
             </div>
 

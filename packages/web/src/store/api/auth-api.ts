@@ -2,6 +2,10 @@ import { api } from '../api-slice';
 
 export const authApi = api.injectEndpoints({
   endpoints: (builder) => ({
+    /** The signed-in user; used on startup to restore the session after a page reload. */
+    me: builder.query<{ id: string; email: string; role: string }, void>({
+      query: () => '/auth/me',
+    }),
     login: builder.mutation<{ token: string; refreshToken: string; email: string; role: string }, { email: string; password: string }>({
       query: (body) => ({
         url: '/auth/login',
@@ -19,4 +23,4 @@ export const authApi = api.injectEndpoints({
   }),
 });
 
-export const { useLoginMutation, useRegisterMutation } = authApi;
+export const { useLoginMutation, useRegisterMutation, useMeQuery } = authApi;
