@@ -88,6 +88,32 @@ tasks.withType<Test> {
     finalizedBy(tasks.jacocoTestReport)
 }
 
+// Fast unit tests run in parallel forks; the Testcontainers integration tests run in their own task in a
+// single fork (one shared Postgres container, and no parallel Docker-environment discovery races).
+tasks.named<Test>("test") {
+    filter { excludeTestsMatching("com.financetracker.integration.*") }
+}
+
+val integrationTest = tasks.register<Test>("integrationTest") {
+    description = "Testcontainers integration tests (real PostgreSQL + Flyway), run serially."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+    filter { includeTestsMatching("com.financetracker.integration.*") }
+    shouldRunAfter(tasks.test)
+}
+
+// Applied last so it wins over the withType defaults above.
+tasks.named<Test>("integrationTest") {
+    maxParallelForks = 1
+    setFinalizedBy(emptyList<Any>())
+}
+
+tasks.named("check") {
+    dependsOn(integrationTest)
+}
+
 // ── JaCoCo ──
 jacoco {
     toolVersion = "0.8.12"

@@ -2,7 +2,7 @@ name: PR Build
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   build:
@@ -28,7 +28,7 @@ jobs:
         run: docker version
 
       - name: Pre-pull PostgreSQL image (speeds up Testcontainers)
-        run: docker pull postgres:17-alpine
+        run: docker pull postgres:16-alpine
 
       - name: Build and run tests
         run: cd backend && ./gradlew check --no-daemon

@@ -2,7 +2,7 @@ name: Merge to Main
 
 on:
   push:
-    branches: [main]
+    branches: [master]
 
 jobs:
   test:
@@ -28,10 +28,10 @@ jobs:
         run: docker version
 
       - name: Pre-pull PostgreSQL image (speeds up Testcontainers)
-        run: docker pull postgres:17-alpine
+        run: docker pull postgres:16-alpine
 
       - name: Run tests with coverage
-        run: cd backend && ./gradlew test jacocoTestReport --no-daemon
+        run: cd backend && ./gradlew test integrationTest jacocoTestReport --no-daemon
 
       - name: Coverage verification
         run: cd backend && ./gradlew jacocoTestCoverageVerification --no-daemon
