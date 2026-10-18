@@ -1,6 +1,5 @@
 package com.financetracker.auth.config;
 
-import com.financetracker.auth.filter.ApiKeyAuthFilter;
 import com.financetracker.auth.filter.JwtAuthenticationFilter;
 import com.financetracker.common.filter.RateLimitingFilter;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +26,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
-    private final ApiKeyAuthFilter apiKeyAuthFilter;
     private final RateLimitingFilter rateLimitingFilter;
     private final com.financetracker.auth.config.UserDetailsConfig userDetailsService;
 
@@ -58,7 +56,6 @@ public class SecurityConfig {
             // Missing/expired token → 401 (not Spring's default 403) so clients know to refresh the token
             .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authenticationProvider(authenticationProvider())
-            .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class)
             .build();

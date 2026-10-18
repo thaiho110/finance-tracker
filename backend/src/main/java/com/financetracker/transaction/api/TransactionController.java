@@ -1,5 +1,7 @@
 package com.financetracker.transaction.api;
 
+import com.financetracker.auth.security.AuthenticatedUser;
+import com.financetracker.auth.security.CurrentUser;
 import com.financetracker.transaction.dto.TransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
 import com.financetracker.transaction.dto.TransactionSummaryResponse;
@@ -15,8 +17,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,9 +42,9 @@ public class TransactionController {
     @Operation(summary = "Save multiple confirmed transactions")
     public ResponseEntity<List<TransactionResponse>> batchCreate(
             @Valid @RequestBody List<TransactionRequest> requests,
-            @AuthenticationPrincipal UserDetails userDetails,
+            @CurrentUser AuthenticatedUser user,
             HttpServletRequest request) {
-        UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes(StandardCharsets.UTF_8));
+        UUID userId = user.getId();
         String clientId = extractClientId(request);
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(transactionService.batchCreate(requests, userId, clientId));
@@ -58,16 +57,16 @@ public class TransactionController {
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             @PageableDefault(size = 20, sort = "date", direction = Sort.Direction.DESC) Pageable pageable,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes(StandardCharsets.UTF_8));
+            @CurrentUser AuthenticatedUser user) {
+        UUID userId = user.getId();
         return ResponseEntity.ok(transactionService.findAll(userId, category, dateFrom, dateTo, pageable));
     }
 
     @GetMapping("/summary")
     @Operation(summary = "Get dashboard summary with category breakdown, monthly trend, and recent transactions")
     public ResponseEntity<TransactionSummaryResponse> getSummary(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes(StandardCharsets.UTF_8));
+            @CurrentUser AuthenticatedUser user) {
+        UUID userId = user.getId();
         return ResponseEntity.ok(transactionService.getSummary(userId));
     }
 
@@ -75,8 +74,8 @@ public class TransactionController {
     @Operation(summary = "Get a single transaction by ID")
     public ResponseEntity<TransactionResponse> getTransaction(
             @PathVariable UUID id,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes(StandardCharsets.UTF_8));
+            @CurrentUser AuthenticatedUser user) {
+        UUID userId = user.getId();
         return ResponseEntity.ok(transactionService.findById(id, userId));
     }
 
@@ -85,8 +84,8 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> updateTransaction(
             @PathVariable UUID id,
             @Valid @RequestBody TransactionRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes(StandardCharsets.UTF_8));
+            @CurrentUser AuthenticatedUser user) {
+        UUID userId = user.getId();
         return ResponseEntity.ok(transactionService.update(id, request, userId));
     }
 
@@ -94,8 +93,8 @@ public class TransactionController {
     @Operation(summary = "Delete a transaction")
     public ResponseEntity<Void> deleteTransaction(
             @PathVariable UUID id,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        UUID userId = UUID.nameUUIDFromBytes(userDetails.getUsername().getBytes(StandardCharsets.UTF_8));
+            @CurrentUser AuthenticatedUser user) {
+        UUID userId = user.getId();
         transactionService.delete(id, userId);
         return ResponseEntity.noContent().build();
     }
