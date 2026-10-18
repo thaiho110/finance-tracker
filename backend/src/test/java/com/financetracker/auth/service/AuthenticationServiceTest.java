@@ -63,6 +63,7 @@ class AuthenticationServiceTest {
         when(jwtService.generateRefreshToken(any())).thenReturn("refresh-token");
 
         AuthResponse response = authService.register(registerRequest);
+        assertThat(response.id()).isEqualTo(testUser.getId().toString());
 
         assertThat(response.token()).isEqualTo("access-token");
         assertThat(response.refreshToken()).isEqualTo("refresh-token");
@@ -147,6 +148,7 @@ class AuthenticationServiceTest {
 
         UserInfoResponse me = authService.currentUser("test@example.com");
 
+        assertThat(me.id()).isEqualTo(testUser.getId().toString());
         assertThat(me.email()).isEqualTo("test@example.com");
         assertThat(me.role()).isEqualTo("user");
     }

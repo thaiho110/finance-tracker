@@ -11,6 +11,7 @@ const PUBLIC_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh'];
 interface AuthResponse {
   token: string;
   refreshToken: string;
+  id: string;
   email: string;
   role: string;
 }

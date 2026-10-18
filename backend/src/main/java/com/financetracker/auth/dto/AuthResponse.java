@@ -10,6 +10,10 @@ public record AuthResponse(
     @Schema(description = "JWT refresh token (7d expiry)", example = "eyJhbGciOiJIUzI1NiJ9...")
     String refreshToken,
 
+    @Schema(description = "Stable user id. Use it (not the email, which can change) as the key for per-user visuals such as the avatar",
+        example = "3f6c2a9e-8d1b-4c7a-9e2f-1b5d4a7c8e90")
+    String id,
+
     @Schema(description = "User email address", example = "user@example.com")
     String email,
 

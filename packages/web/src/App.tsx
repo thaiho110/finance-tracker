@@ -44,6 +44,7 @@ function AuthCheck({ children }: { children: React.ReactNode }) {
         dispatch(setCredentials({
           token: tokenStorage.getToken() ?? token,
           refreshToken: tokenStorage.getRefreshToken() ?? refreshToken,
+          id: user.id,
           email: user.email,
           role: user.role,
         }));
@@ -56,8 +57,9 @@ function AuthCheck({ children }: { children: React.ReactNode }) {
           return;
         }
         // Server unreachable: keep the session (the token may still be valid) and show the
-        // email from the token until the next successful call.
-        dispatch(setCredentials({ token, refreshToken, email: emailFromToken(token) ?? '', role: '' }));
+        // email from the token until the next successful call. The id isn't in the token, so the
+        // avatar shows initials until then.
+        dispatch(setCredentials({ token, refreshToken, id: null, email: emailFromToken(token) ?? '', role: '' }));
       });
   }, [dispatch]);
 

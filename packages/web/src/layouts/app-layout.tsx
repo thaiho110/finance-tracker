@@ -38,7 +38,7 @@ export function AppLayout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { email } = useSelector((state: RootState) => state.auth);
+  const { id, email } = useSelector((state: RootState) => state.auth);
 
   const pageTitle = useMemo(() => {
     // Match the current path to a title
@@ -153,10 +153,11 @@ export function AppLayout() {
 
             {/* User info */}
             <div className="flex items-center gap-2 rounded-lg bg-bg-muted px-3 py-1.5">
-              {email ? (
-                // Deterministic avatar from the email (same face everywhere); version pinned so library updates don't redraw it
+              {id ? (
+                // Deterministic avatar seeded by the user id, not the email, so changing email keeps the same face.
+                // Version pinned so library updates don't redraw it.
                 <Peek
-                  name={email}
+                  name={id}
                   size={28}
                   square={false}
                   frame={dark ? 'ink' : 'paper'}
