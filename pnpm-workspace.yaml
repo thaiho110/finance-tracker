@@ -5,3 +5,8 @@ allowBuilds:
   electron: true
   # Squirrel installer helper pulled in by electron-builder; the NSIS target doesn't need it
   electron-winstaller: false
+# React Native (packages/mobile) needs a flat node_modules: Gradle, CocoaPods and autolinking
+# look for native modules by path. The web and desktop builds work the same way with it.
+minimumReleaseAgeExclude:
+  - "@react-native-documents/picker@12.0.3"
+nodeLinker: hoisted
