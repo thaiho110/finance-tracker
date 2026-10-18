@@ -52,3 +52,7 @@ packages/*/.turbo/
 # Desktop (electron-vite / electron-builder)
 packages/desktop/out/
 packages/desktop/release/
+
+# Database backups (keep the dir, ignore dumps)
+backups/*.sql.gz
+backups/*.sql.gz.tmp
