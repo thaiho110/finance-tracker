@@ -151,7 +151,7 @@ Remove or tighten short ambiguous system keywords (`BP`, `GAS`), which word-boun
 Decided while building it; where this list and the text above disagree, this list wins.
 
 - **Migrations renumbered.** V4 was taken by ADR-018, so the new tables are **V5** (`V5__categories_and_rules.sql`).
-  The old `transactions.category` column and `category_mappings` are dropped later in **V6**; until then V5 only
+  The old `transactions.category` column and `category_mappings` are dropped in a later migration; until then V5 only
   makes `category` nullable and nothing writes it.
 - **Three kinds, not two.** `kind` is `EXPENSE`, `INCOME` or **`TRANSFER`** (money between the user's own accounts:
   savings, card payments, wallet top-ups). V5 adds a system **Transfer** category. Transfers are listed but count in

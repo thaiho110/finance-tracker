@@ -8,6 +8,7 @@ import com.financetracker.category.dto.CategoryRuleRequest;
 import com.financetracker.category.dto.CategoryRuleResponse;
 import com.financetracker.category.dto.CategoryRuleSaveResponse;
 import com.financetracker.category.dto.CategoryUpdateRequest;
+import com.financetracker.category.event.CategoryArchivedEvent;
 import com.financetracker.category.model.Category;
 import com.financetracker.category.model.CategoryKind;
 import com.financetracker.category.model.CategoryRef;
@@ -17,6 +18,7 @@ import com.financetracker.category.repository.CategoryRuleRepository;
 import com.financetracker.common.exception.ConflictException;
 import com.financetracker.common.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +47,7 @@ public class CategoryService {
     private final CategoryRuleRepository rules;
     private final CategorizationService categorization;
     private final CategoryUsage usage;
+    private final ApplicationEventPublisher events;
 
     // ───────────────────────── categories ─────────────────────────
 
@@ -83,9 +86,14 @@ public class CategoryService {
             requireFreeName(userId, name, id);
             category.setName(name);
         }
+        boolean wasArchived = category.isArchived();
         apply(category, request);
         categorization.evictUser(userId);
-        return CategoryResponse.of(categories.save(category), false);
+        Category saved = categories.save(category);
+        if (!wasArchived && saved.isArchived()) {
+            events.publishEvent(new CategoryArchivedEvent(saved.getId(), userId));
+        }
+        return CategoryResponse.of(saved, false);
     }
 
     /**
@@ -107,8 +115,11 @@ public class CategoryService {
             categories.delete(category);
             return new CategoryDeleteResponse(CategoryDeleteResponse.Outcome.DELETED, moved);
         }
-        category.setArchived(true);
-        categories.save(category);
+        if (!category.isArchived()) {
+            category.setArchived(true);
+            categories.save(category);
+            events.publishEvent(new CategoryArchivedEvent(id, userId));
+        }
         return new CategoryDeleteResponse(CategoryDeleteResponse.Outcome.ARCHIVED, moved);
     }
 
@@ -153,6 +164,11 @@ public class CategoryService {
     public Map<UUID, CategoryRef> refs(Set<UUID> ids) {
         return categories.findByIdIn(ids).stream()
             .collect(Collectors.toMap(Category::getId, CategoryRef::of, (a, b) -> a));
+    }
+
+    /** A category the user may use right now (visible, not archived, not hidden). */
+    public CategoryRef usableRef(UUID userId, UUID id) {
+        return CategoryRef.of(usableBy(userId, id));
     }
 
     /** One category the user can see (system or own), archived included. */

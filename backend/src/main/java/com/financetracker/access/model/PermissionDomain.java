@@ -6,6 +6,7 @@ public enum PermissionDomain {
     DASHBOARD,
     IMPORTS,
     CATEGORIES,
+    BUDGETS,
     ADMINISTRATION,
     MONITORING
 }

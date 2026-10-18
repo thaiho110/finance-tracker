@@ -4,6 +4,7 @@ import com.financetracker.category.dto.CategoryRequest;
 import com.financetracker.category.dto.CategoryResponse;
 import com.financetracker.category.dto.CategoryRuleResponse;
 import com.financetracker.category.dto.CategoryUpdateRequest;
+import com.financetracker.category.event.CategoryArchivedEvent;
 import com.financetracker.category.model.Category;
 import com.financetracker.category.model.CategoryKind;
 import com.financetracker.category.model.CategoryRule;
@@ -12,6 +13,7 @@ import com.financetracker.category.repository.CategoryRuleRepository;
 import com.financetracker.common.exception.ConflictException;
 import com.financetracker.common.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,7 @@ public class SystemCategoryService {
     private final CategoryRuleRepository rules;
     private final CategorizationService categorization;
     private final CategoryService categoryService;
+    private final ApplicationEventPublisher events;
 
     public List<CategoryResponse> list() {
         return categories.findSystem().stream().map(c -> CategoryResponse.of(c, false)).toList();
@@ -65,9 +68,14 @@ public class SystemCategoryService {
             });
             category.setName(name);
         }
+        boolean wasArchived = category.isArchived();
         CategoryService.apply(category, request);
         categorization.evictAll();
-        return CategoryResponse.of(categories.save(category), false);
+        Category saved = categories.save(category);
+        if (!wasArchived && saved.isArchived()) {
+            events.publishEvent(new CategoryArchivedEvent(saved.getId(), null));
+        }
+        return CategoryResponse.of(saved, false);
     }
 
     public List<CategoryRuleResponse> listRules() {

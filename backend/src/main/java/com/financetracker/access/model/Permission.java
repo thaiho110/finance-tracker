@@ -14,6 +14,7 @@ public enum Permission {
     CATEGORY_READ(PermissionDomain.CATEGORIES, PermissionKind.ROLE, "See categories"),
     CATEGORY_WRITE(PermissionDomain.CATEGORIES, PermissionKind.ROLE, "Create own categories and keyword rules"),
     CATEGORY_ADMIN(PermissionDomain.CATEGORIES, PermissionKind.ROLE, "Manage the default categories and rules everyone shares"),
+    BUDGETS(PermissionDomain.BUDGETS, PermissionKind.FEATURE, "Monthly budgets per category, with warnings"),
     USER_READ(PermissionDomain.ADMINISTRATION, PermissionKind.ROLE, "See accounts (never their transactions)"),
     USER_SUSPEND(PermissionDomain.ADMINISTRATION, PermissionKind.ROLE, "Disable and enable accounts with a lower role"),
     USER_CREATE(PermissionDomain.ADMINISTRATION, PermissionKind.ROLE, "Create accounts"),
