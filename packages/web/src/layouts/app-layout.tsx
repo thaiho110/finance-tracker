@@ -14,6 +14,7 @@ import {
   ScrollText,
   Tags,
   FolderCog,
+  Settings,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { logout as logoutAction } from '@/store/auth-slice';
@@ -45,6 +46,7 @@ const adminItems: NavItem[] = [
   { to: '/admin/users', label: 'Users', icon: Users, anyOf: ['USER_READ'] },
   { to: '/admin/roles', label: 'Roles & features', icon: ShieldCheck, anyOf: ['USER_READ'] },
   { to: '/admin/categories', label: 'Default categories', icon: FolderCog, anyOf: ['CATEGORY_ADMIN'] },
+  { to: '/admin/settings', label: 'Settings', icon: Settings, anyOf: ['USER_READ'] },
   { to: '/admin/audit', label: 'Audit log', icon: ScrollText, anyOf: ['AUDIT_READ'] },
 ];
 
@@ -58,6 +60,7 @@ const pageTitles: Record<string, string> = {
   '/admin/roles': 'Roles & features',
   '/admin/audit': 'Audit log',
   '/admin/categories': 'Default categories',
+  '/admin/settings': 'Settings',
   '/settings/categories': 'Categories',
 };
 

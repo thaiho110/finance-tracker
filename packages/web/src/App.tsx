@@ -21,6 +21,7 @@ import AdminUsersPage from '@/pages/admin/users-page';
 import AdminRolesPage from '@/pages/admin/roles-page';
 import AdminAuditPage from '@/pages/admin/audit-page';
 import AdminCategoriesPage from '@/pages/admin/categories-page';
+import AdminSettingsPage from '@/pages/admin/settings-page';
 import CategoriesSettingsPage from '@/pages/settings/categories-page';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -109,6 +110,7 @@ export default function App() {
             <Route path="/admin/roles" element={<RequirePermission permission="USER_READ"><AdminRolesPage /></RequirePermission>} />
             <Route path="/admin/audit" element={<RequirePermission permission="AUDIT_READ"><AdminAuditPage /></RequirePermission>} />
             <Route path="/admin/categories" element={<RequirePermission permission="CATEGORY_ADMIN"><AdminCategoriesPage /></RequirePermission>} />
+            <Route path="/admin/settings" element={<RequirePermission permission="USER_READ"><AdminSettingsPage /></RequirePermission>} />
           </Route>
 
           {/* Default redirect */}
