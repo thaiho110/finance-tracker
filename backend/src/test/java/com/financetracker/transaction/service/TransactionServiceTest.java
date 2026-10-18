@@ -56,7 +56,8 @@ class TransactionServiceTest {
             "STARBUCKS",
             BigDecimal.valueOf(12.50),
             "Coffee Shop",
-            "CSV"
+            "CSV",
+            null
         );
         testTransaction = Transaction.builder()
             .id(transactionId)
@@ -159,7 +160,8 @@ class TransactionServiceTest {
             "AMAZON",
             BigDecimal.valueOf(99.99),
             "Online Shopping",
-            "MANUAL"
+            "MANUAL",
+            null
         );
 
         TransactionResponse response = transactionService.update(transactionId, updateRequest, userId);

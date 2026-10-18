@@ -27,7 +27,6 @@ public final class ReceiptImagePreprocessor {
     private static final double MAX_SKEW_DEGREES = 10.0;
     private static final double SKEW_STEP_DEGREES = 0.5;
     private static final double MIN_SKEW_TO_FIX = 0.4;
-    private static final double ANGLE_EPSILON = 1e-9;
 
     /** Bradley adaptive threshold: a pixel is ink if it is this much darker than its neighbourhood mean. */
     private static final double THRESHOLD_SENSITIVITY = 0.15;
@@ -135,8 +134,12 @@ public final class ReceiptImagePreprocessor {
         }
         double bestAngle = 0;
         double bestScore = -1;
-        for (double angle = -MAX_SKEW_DEGREES; angle <= MAX_SKEW_DEGREES + ANGLE_EPSILON; angle += SKEW_STEP_DEGREES) {
-            double score = projectionScore(inkX, inkY, inkCount, Math.toRadians(angle), width, height);
+        int[] xs = Arrays.copyOf(inkX, inkCount);
+        int[] ys = Arrays.copyOf(inkY, inkCount);
+        int steps = (int) Math.round(2 * MAX_SKEW_DEGREES / SKEW_STEP_DEGREES);
+        for (int step = 0; step <= steps; step++) {
+            double angle = -MAX_SKEW_DEGREES + step * SKEW_STEP_DEGREES;
+            double score = projectionScore(xs, ys, Math.toRadians(angle), width, height);
             if (score > bestScore) {
                 bestScore = score;
                 bestAngle = angle;
@@ -145,12 +148,12 @@ public final class ReceiptImagePreprocessor {
         return bestAngle;
     }
 
-    private static double projectionScore(int[] xs, int[] ys, int count, double radians, int width, int height) {
+    private static double projectionScore(int[] xs, int[] ys, double radians, int width, int height) {
         double sin = Math.sin(radians);
         double cos = Math.cos(radians);
         int offset = width + height;
         int[] rows = new int[2 * offset + 1];
-        for (int i = 0; i < count; i++) {
+        for (int i = 0; i < xs.length; i++) {
             int row = (int) Math.round(ys[i] * cos - xs[i] * sin) + offset;
             rows[row]++;
         }

@@ -36,15 +36,15 @@ public class AuthenticationService {
             .role("user")
             .build();
 
-        userRepository.save(user);
+        User saved = userRepository.save(user);
 
         var userDetails = new org.springframework.security.core.userdetails.User(
-            user.getEmail(), user.getPasswordHash(), java.util.Collections.emptyList());
+            saved.getEmail(), saved.getPasswordHash(), java.util.Collections.emptyList());
 
         var token = jwtService.generateToken(userDetails);
         var refreshToken = jwtService.generateRefreshToken(userDetails);
 
-        return new AuthResponse(token, refreshToken, user.getId().toString(), user.getEmail(), user.getRole());
+        return new AuthResponse(token, refreshToken, saved.getId().toString(), saved.getEmail(), saved.getRole());
     }
 
     public AuthResponse authenticate(AuthRequest request) {
