@@ -69,8 +69,7 @@ export default function RegisterPage() {
 
     try {
       const data = await register({ email, password }).unwrap();
-      tokenStorage.setToken(data.token);
-      tokenStorage.setRefreshToken(data.refreshToken);
+      tokenStorage.setTokens(data.token, data.refreshToken);
       dispatch(setCredentials(data));
       toast.success('Account created successfully!');
       navigate('/dashboard', { replace: true });
