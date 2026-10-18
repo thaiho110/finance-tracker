@@ -40,9 +40,13 @@ public class AccessService {
 
     /** Role for a newly registered account: SUPER_ADMIN for {@code APP_SUPER_ADMIN_EMAIL}, otherwise USER. */
     public String initialRoleFor(String email) {
+        return isConfiguredOwner(email) ? Role.SUPER_ADMIN : Role.USER;
+    }
+
+    /** Whether this email is the configured owner ({@code APP_SUPER_ADMIN_EMAIL}), who may always bootstrap. */
+    public boolean isConfiguredOwner(String email) {
         String owner = properties.getSuperAdminEmail();
-        boolean isOwner = owner != null && !owner.isBlank() && email != null && owner.strip().equalsIgnoreCase(email.strip());
-        return isOwner ? Role.SUPER_ADMIN : Role.USER;
+        return owner != null && !owner.isBlank() && email != null && owner.strip().equalsIgnoreCase(email.strip());
     }
 
     /** Everything this account may do right now. */

@@ -148,6 +148,11 @@ springdoc:
   swagger-ui:
     enabled: true
 
+# Local signups stay open regardless of the stored registration mode (ADR-016).
+app:
+  registration:
+    forced-mode: OPEN
+
 logging:
   level:
     com.financetracker: DEBUG

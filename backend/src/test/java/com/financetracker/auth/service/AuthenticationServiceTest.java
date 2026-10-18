@@ -6,9 +6,12 @@ import com.financetracker.auth.dto.AuthRequest;
 import com.financetracker.auth.dto.AuthResponse;
 import com.financetracker.auth.dto.RegisterRequest;
 import com.financetracker.auth.dto.UserInfoResponse;
+import com.financetracker.auth.model.RegistrationInvite;
+import com.financetracker.auth.model.RegistrationMode;
 import com.financetracker.auth.model.User;
 import com.financetracker.auth.repository.UserRepository;
 import com.financetracker.common.exception.AuthenticationException;
+import com.financetracker.settings.service.SettingsService;
 import io.jsonwebtoken.MalformedJwtException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +42,8 @@ class AuthenticationServiceTest {
     @Mock private JwtService jwtService;
     @Mock private AuthenticationManager authenticationManager;
     @Mock private AccessService accessService;
+    @Mock private SettingsService settingsService;
+    @Mock private InviteService inviteService;
 
     @InjectMocks private AuthenticationService authService;
 
@@ -48,7 +53,7 @@ class AuthenticationServiceTest {
 
     @BeforeEach
     void setUp() {
-        registerRequest = new RegisterRequest("test@example.com", "password123");
+        registerRequest = new RegisterRequest("test@example.com", "password123", null);
         authRequest = new AuthRequest("test@example.com", "password123");
         testUser = User.builder()
             .id(UUID.randomUUID())
@@ -62,6 +67,7 @@ class AuthenticationServiceTest {
     @DisplayName("Should register a new user successfully")
     void shouldRegisterUser() {
         when(userRepository.existsByEmail("test@example.com")).thenReturn(false);
+        when(settingsService.getRegistrationMode()).thenReturn(RegistrationMode.OPEN);
         when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
         when(userRepository.save(any(User.class))).thenReturn(testUser);
         when(jwtService.generateToken(any())).thenReturn("access-token");
@@ -88,6 +94,67 @@ class AuthenticationServiceTest {
             .hasMessageContaining("Email already registered");
 
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should refuse registration when the mode is CLOSED")
+    void shouldRefuseWhenClosed() {
+        when(userRepository.existsByEmail("test@example.com")).thenReturn(false);
+        when(settingsService.getRegistrationMode()).thenReturn(RegistrationMode.CLOSED);
+
+        assertThatThrownBy(() -> authService.register(registerRequest))
+            .isInstanceOf(AuthenticationException.class)
+            .hasMessageContaining("closed");
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should require a valid invite when the mode is INVITE_ONLY")
+    void shouldRequireInviteWhenInviteOnly() {
+        when(userRepository.existsByEmail("test@example.com")).thenReturn(false);
+        when(settingsService.getRegistrationMode()).thenReturn(RegistrationMode.INVITE_ONLY);
+        when(inviteService.requireUsable(null)).thenThrow(new AuthenticationException("An invite is required to register"));
+
+        assertThatThrownBy(() -> authService.register(registerRequest))
+            .isInstanceOf(AuthenticationException.class);
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should consume a valid invite when the mode is INVITE_ONLY")
+    void shouldConsumeInvite() {
+        RegisterRequest withInvite = new RegisterRequest("test@example.com", "password123", "invite-token");
+        RegistrationInvite invite = RegistrationInvite.builder().id(UUID.randomUUID()).build();
+        when(userRepository.existsByEmail("test@example.com")).thenReturn(false);
+        when(settingsService.getRegistrationMode()).thenReturn(RegistrationMode.INVITE_ONLY);
+        when(inviteService.requireUsable("invite-token")).thenReturn(invite);
+        when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
+        when(userRepository.save(any(User.class))).thenReturn(testUser);
+        when(jwtService.generateToken(any())).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(any())).thenReturn("refresh-token");
+
+        AuthResponse response = authService.register(withInvite);
+
+        assertThat(response.token()).isEqualTo("access-token");
+        verify(inviteService).markUsed(invite, testUser.getId());
+    }
+
+    @Test
+    @DisplayName("The configured owner can register even when the mode is CLOSED")
+    void ownerBypassesClosed() {
+        when(userRepository.existsByEmail("test@example.com")).thenReturn(false);
+        when(accessService.isConfiguredOwner("test@example.com")).thenReturn(true);
+        when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
+        when(userRepository.save(any(User.class))).thenReturn(testUser);
+        when(jwtService.generateToken(any())).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(any())).thenReturn("refresh-token");
+
+        AuthResponse response = authService.register(registerRequest);
+
+        assertThat(response.token()).isEqualTo("access-token");
+        verify(settingsService, never()).getRegistrationMode();
     }
 
     @Test

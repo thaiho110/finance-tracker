@@ -12,5 +12,8 @@ public record RegisterRequest(
 
     @Schema(description = "Password (min 8 characters, must contain uppercase, lowercase, digit, and special character)",
              example = "MySecureP@ss123", minLength = 8)
-    @NotBlank @PasswordConstraint String password
+    @NotBlank @PasswordConstraint String password,
+
+    @Schema(description = "Invite token, required when registration is invite-only (ADR-016)", nullable = true)
+    String inviteToken
 ) { }

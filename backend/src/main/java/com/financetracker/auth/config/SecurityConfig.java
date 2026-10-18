@@ -51,17 +51,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(request -> {
-                var corsConfig = new org.springframework.web.cors.CorsConfiguration();
-                corsConfig.setAllowedOrigins(java.util.List.of(
-                    "http://localhost:5173", "http://localhost:3000",
-                    "capacitor://localhost", "file://"));
-                corsConfig.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                corsConfig.setAllowedHeaders(java.util.List.of("*"));
-                corsConfig.setExposedHeaders(java.util.List.of("X-RateLimit-Remaining", "Sunset"));
-                corsConfig.setAllowCredentials(true);
-                return corsConfig;
-            }))
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/me").authenticated()
                 .requestMatchers("/api/v1/auth/**").permitAll()
@@ -93,6 +83,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/admin/roles/**").hasAuthority(ROLE_MANAGE.name())
                 .requestMatchers(HttpMethod.GET, "/api/v1/admin/audit/**").hasAuthority(AUDIT_READ.name())
                 .requestMatchers("/api/v1/admin/categories/**").hasAuthority(CATEGORY_ADMIN.name())
+                // Registration mode (ADR-016): read with USER_READ, change with ROLE_MANAGE; invites with USER_CREATE.
+                .requestMatchers(HttpMethod.GET, "/api/v1/admin/registration").hasAuthority(USER_READ.name())
+                .requestMatchers("/api/v1/admin/registration").hasAuthority(ROLE_MANAGE.name())
+                .requestMatchers(HttpMethod.GET, "/api/v1/admin/invites").hasAuthority(USER_READ.name())
+                .requestMatchers("/api/v1/admin/invites/**").hasAuthority(USER_CREATE.name())
                 .requestMatchers("/api/v1/admin/**").denyAll()
 
                 .anyRequest().authenticated()
@@ -104,6 +99,21 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class)
             .build();
+    }
+
+    /** CORS for the web, desktop and mobile clients; credentials are allowed so the bearer token can be sent. */
+    private org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+        return request -> {
+            var corsConfig = new org.springframework.web.cors.CorsConfiguration();
+            corsConfig.setAllowedOrigins(java.util.List.of(
+                "http://localhost:5173", "http://localhost:3000",
+                "capacitor://localhost", "file://"));
+            corsConfig.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+            corsConfig.setAllowedHeaders(java.util.List.of("*"));
+            corsConfig.setExposedHeaders(java.util.List.of("X-RateLimit-Remaining", "Sunset"));
+            corsConfig.setAllowCredentials(true);
+            return corsConfig;
+        };
     }
 
     @Bean

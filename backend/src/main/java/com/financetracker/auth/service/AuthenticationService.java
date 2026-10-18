@@ -5,9 +5,12 @@ import com.financetracker.auth.dto.AuthRequest;
 import com.financetracker.auth.dto.AuthResponse;
 import com.financetracker.auth.dto.RegisterRequest;
 import com.financetracker.auth.dto.UserInfoResponse;
+import com.financetracker.auth.model.RegistrationInvite;
+import com.financetracker.auth.model.RegistrationMode;
 import com.financetracker.auth.model.User;
 import com.financetracker.auth.repository.UserRepository;
 import com.financetracker.common.exception.AuthenticationException;
+import com.financetracker.settings.service.SettingsService;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,11 +31,25 @@ public class AuthenticationService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final AccessService accessService;
+    private final SettingsService settingsService;
+    private final InviteService inviteService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
             throw new AuthenticationException("Email already registered");
+        }
+
+        // The configured owner can always bootstrap their own account; everyone else is gated by the mode.
+        RegistrationInvite invite = null;
+        if (!accessService.isConfiguredOwner(request.email())) {
+            RegistrationMode mode = settingsService.getRegistrationMode();
+            if (mode == RegistrationMode.CLOSED) {
+                throw new AuthenticationException("Registration is closed");
+            }
+            if (mode == RegistrationMode.INVITE_ONLY) {
+                invite = inviteService.requireUsable(request.inviteToken());
+            }
         }
 
         var user = User.builder()
@@ -42,6 +59,9 @@ public class AuthenticationService {
             .build();
 
         User saved = userRepository.save(user);
+        if (invite != null) {
+            inviteService.markUsed(invite, saved.getId());
+        }
 
         var userDetails = new org.springframework.security.core.userdetails.User(
             saved.getEmail(), saved.getPasswordHash(), java.util.Collections.emptyList());
@@ -51,6 +71,11 @@ public class AuthenticationService {
 
         return new AuthResponse(token, refreshToken, saved.getId().toString(), saved.getEmail(), saved.getRole(),
             permissionNames(saved));
+    }
+
+    /** The current registration mode, so clients can show or hide sign-up and ask for an invite. */
+    public RegistrationMode registrationMode() {
+        return settingsService.getRegistrationMode();
     }
 
     public AuthResponse authenticate(AuthRequest request) {
