@@ -2,3 +2,6 @@ packages:
   - "packages/*"
 allowBuilds:
   esbuild: true
+  electron: true
+  # Squirrel installer helper pulled in by electron-builder; the NSIS target doesn't need it
+  electron-winstaller: false

@@ -48,3 +48,7 @@ packages/*/.turbo/
 # Environment
 .env.local
 .env.development.local
+
+# Desktop (electron-vite / electron-builder)
+packages/desktop/out/
+packages/desktop/release/
