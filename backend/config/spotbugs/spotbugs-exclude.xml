@@ -24,6 +24,10 @@
             <Class name="com.financetracker.transaction.service.TransactionService"/>
             <Class name="com.financetracker.transaction.api.TransactionController"/>
             <Class name="com.financetracker.common.config.rate_limiting.InMemoryRateLimiter"/>
+            <Class name="com.financetracker.ocr.service.OcrService"/>
+            <Class name="com.financetracker.ocr.api.OcrController"/>
+            <Class name="com.financetracker.access.service.AccessService"/>
+            <Class name="com.financetracker.admin.config.SuperAdminBootstrap"/>
         </Or>
     </Match>
 
@@ -33,5 +37,13 @@
         <Or>
             <Class name="com.financetracker.transaction.service.TransactionService"/>
         </Or>
+    </Match>
+    <!-- @ConfigurationProperties beans: Spring binds nested settings objects through their getters/setters -->
+    <Match>
+        <Or>
+            <Bug pattern="EI_EXPOSE_REP"/>
+            <Bug pattern="EI_EXPOSE_REP2"/>
+        </Or>
+        <Class name="com.financetracker.ocr.config.OcrProperties"/>
     </Match>
 </FindBugsFilter>

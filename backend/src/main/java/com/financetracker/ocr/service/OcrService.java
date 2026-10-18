@@ -8,7 +8,9 @@ import com.financetracker.ocr.exception.OcrException;
 import com.financetracker.ocr.extract.ExtractedReceipt;
 import com.financetracker.ocr.extract.ReceiptOcrEngine;
 import com.financetracker.ocr.extract.ReceiptTextParser;
-import com.financetracker.transaction.service.DeduplicationService;
+import com.financetracker.transaction.intake.DraftTransaction;
+import com.financetracker.transaction.intake.RawEntry;
+import com.financetracker.transaction.intake.TransactionIntake;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.apache.pdfbox.Loader;
@@ -31,7 +33,7 @@ import java.util.UUID;
 
 /**
  * Reads receipts (ADR-014): decode the upload (image or first PDF page) → local OCR → rule-based
- * parsing → categorization and duplicate check. The uploaded bytes are never stored.
+ * parsing → {@link TransactionIntake} (categorization and duplicate check). The uploaded bytes are never stored.
  */
 @Service
 public class OcrService {
@@ -39,7 +41,6 @@ public class OcrService {
     /** Fewer letters/digits than this means OCR could not read the photo. */
     private static final int MIN_TEXT_CHARACTERS = 20;
     private static final ZoneId RECEIPT_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
-    private static final String DEFAULT_CATEGORY = "Other";
 
     private static final String METRIC_RECEIPTS = "finance.ocr.receipts";
     private static final String METRIC_DURATION = "finance.ocr.duration";
@@ -47,7 +48,7 @@ public class OcrService {
     private static final String METRIC_WARNINGS = "finance.ocr.warnings";
 
     private final CategorizationService categorizationService;
-    private final DeduplicationService deduplicationService;
+    private final TransactionIntake intake;
     private final ReceiptOcrEngine ocrEngine;
     private final MeterRegistry meterRegistry;
     private final OcrProperties properties;
@@ -55,12 +56,12 @@ public class OcrService {
     private Clock clock = Clock.system(RECEIPT_ZONE);
 
     public OcrService(CategorizationService categorizationService,
-                      DeduplicationService deduplicationService,
+                      TransactionIntake intake,
                       ReceiptOcrEngine ocrEngine,
                       MeterRegistry meterRegistry,
                       OcrProperties properties) {
         this.categorizationService = categorizationService;
-        this.deduplicationService = deduplicationService;
+        this.intake = intake;
         this.ocrEngine = ocrEngine;
         this.meterRegistry = meterRegistry;
         this.properties = properties;
@@ -193,17 +194,12 @@ public class OcrService {
     // ───────────────────────── response ─────────────────────────
 
     private ParsedReceiptResponse toResponse(ExtractedReceipt receipt, UUID userId) {
-        String category = receipt.merchant() == null
-            ? DEFAULT_CATEGORY
-            : categorizationService.categorize(
-                categorizationService.cleanMerchant(ReceiptTextParser.normalizeForMatching(receipt.merchant())));
-        boolean isDuplicate = receipt.date() != null && receipt.total() != null
-            && deduplicationService.isDuplicate(userId, receipt.date(), receipt.total());
+        DraftTransaction draft = intake.draft(userId, new RawEntry(receipt.date(), receipt.merchant(), receipt.total()));
         List<ParsedReceiptResponse.LineItem> lineItems = receipt.lineItems().stream()
             .map(item -> new ParsedReceiptResponse.LineItem(item.item(), item.price()))
             .toList();
         return new ParsedReceiptResponse(receipt.merchant(), receipt.date(), receipt.total(),
-            category, isDuplicate, lineItems, receipt.warnings());
+            draft.category(), draft.duplicate(), lineItems, receipt.warnings());
     }
 
     private void recordFields(ExtractedReceipt receipt) {

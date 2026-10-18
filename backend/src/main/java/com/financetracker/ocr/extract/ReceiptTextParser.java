@@ -101,11 +101,6 @@ public final class ReceiptTextParser {
         return new ExtractedReceipt(merchant, date, total == null ? null : total.amount(), items, warnings, amountsFound);
     }
 
-    /** Uppercase, accents removed, Đ→D — the form used to match keywords such as category mappings. */
-    public static String normalizeForMatching(String text) {
-        return ReceiptLine.normalize(text);
-    }
-
     // ───────────────────────── merchant ─────────────────────────
 
     private String findMerchant(List<ReceiptLine> lines, Collection<String> knownMerchants) {

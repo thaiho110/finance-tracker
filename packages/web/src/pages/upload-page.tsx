@@ -8,6 +8,8 @@ import {
 import { toast } from 'sonner';
 import { useParseCsvMutation, useBatchSaveTransactionsMutation, useProcessOcrMutation } from '@/store/api/transaction-api';
 import { useGetCategoriesQuery } from '@/store/api/category-api';
+import { useCan } from '@/lib/permissions';
+import { NotAvailable } from '@/components/guards/require-permission';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -129,11 +131,11 @@ async function prepareReceiptImage(file: File): Promise<File> {
 
 /* ───────────────────────── shared pieces ───────────────────────── */
 
-function Tabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
+function Tabs({ tab, onChange, available }: { tab: Tab; onChange: (t: Tab) => void; available: Tab[] }) {
   const items: { id: Tab; label: string; icon: typeof FileSpreadsheet }[] = [
-    { id: 'csv', label: 'CSV Upload', icon: FileSpreadsheet },
-    { id: 'ocr', label: 'Receipt Scan', icon: Camera },
-  ];
+    { id: 'csv' as Tab, label: 'CSV Upload', icon: FileSpreadsheet },
+    { id: 'ocr' as Tab, label: 'Receipt Scan', icon: Camera },
+  ].filter((item) => available.includes(item.id));
   return (
     <div role="tablist" className="inline-flex gap-1 rounded-[10px] bg-bg-muted p-1">
       {items.map(({ id, label, icon: Icon }) => (
@@ -275,13 +277,24 @@ function CategorySelect({ value, categories, onChange, className }: {
 /* ───────────────────────── page ───────────────────────── */
 
 export default function UploadPage() {
-  const [tab, setTab] = useState<Tab>('csv');
+  const can = useCan();
+  // Each import method is a per-user feature (ADR-018): CSV_IMPORT and RECEIPT_SCAN.
+  const available: Tab[] = [
+    ...(can('CSV_IMPORT') ? ['csv' as Tab] : []),
+    ...(can('RECEIPT_SCAN') ? ['ocr' as Tab] : []),
+  ];
+  const [tab, setTab] = useState<Tab>(available[0] ?? 'csv');
   const { data: apiCategories = [] } = useGetCategoriesQuery();
+
+  if (available.length === 0) {
+    return <NotAvailable title="Importing isn't available on your account" />;
+  }
+  const current = available.includes(tab) ? tab : available[0];
 
   return (
     <div className="flex min-h-full flex-col gap-5">
-      <Tabs tab={tab} onChange={setTab} />
-      {tab === 'csv'
+      <Tabs tab={current} onChange={setTab} available={available} />
+      {current === 'csv'
         ? <CsvImport categories={apiCategories} />
         : <ReceiptScan categories={apiCategories} />}
     </div>
@@ -538,7 +551,7 @@ function CsvImport({ categories }: { categories: string[] }) {
                     <td className="td-base py-1.5 pr-1">
                       <div className="flex items-center gap-1.5">
                         {row.isDuplicate && (
-                          <span title="Possible duplicate of a saved transaction">
+                          <span title="Possible duplicate of a saved transaction or an earlier row in this file">
                             <AlertTriangle className="size-3.5 shrink-0 text-status-warning" />
                           </span>
                         )}

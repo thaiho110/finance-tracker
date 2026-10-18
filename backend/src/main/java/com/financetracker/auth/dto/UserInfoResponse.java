@@ -2,6 +2,8 @@ package com.financetracker.auth.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.List;
+
 @Schema(description = "The signed-in user")
 public record UserInfoResponse(
     @Schema(description = "Stable user id. Use it (not the email, which can change) as the key for per-user visuals such as the avatar",
@@ -11,6 +13,14 @@ public record UserInfoResponse(
     @Schema(description = "User email address", example = "user@example.com")
     String email,
 
-    @Schema(description = "User role", example = "user")
-    String role
-) { }
+    @Schema(description = "Role code (ADR-018)", example = "USER")
+    String role,
+
+    @Schema(description = "What this user may do right now; clients use it only to show or hide features",
+        example = "[\"CSV_IMPORT\", \"TRANSACTION_READ\"]")
+    List<String> permissions
+) {
+    public UserInfoResponse {
+        permissions = permissions == null ? List.of() : List.copyOf(permissions);
+    }
+}

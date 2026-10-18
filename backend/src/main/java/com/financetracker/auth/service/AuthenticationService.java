@@ -1,5 +1,6 @@
 package com.financetracker.auth.service;
 
+import com.financetracker.access.service.AccessService;
 import com.financetracker.auth.dto.AuthRequest;
 import com.financetracker.auth.dto.AuthResponse;
 import com.financetracker.auth.dto.RegisterRequest;
@@ -15,6 +16,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService {
@@ -23,6 +27,7 @@ public class AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final AccessService accessService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -33,18 +38,19 @@ public class AuthenticationService {
         var user = User.builder()
             .email(request.email())
             .passwordHash(passwordEncoder.encode(request.password()))
-            .role("user")
+            .role(accessService.initialRoleFor(request.email()))
             .build();
 
-        userRepository.save(user);
+        User saved = userRepository.save(user);
 
         var userDetails = new org.springframework.security.core.userdetails.User(
-            user.getEmail(), user.getPasswordHash(), java.util.Collections.emptyList());
+            saved.getEmail(), saved.getPasswordHash(), java.util.Collections.emptyList());
 
         var token = jwtService.generateToken(userDetails);
         var refreshToken = jwtService.generateRefreshToken(userDetails);
 
-        return new AuthResponse(token, refreshToken, user.getId().toString(), user.getEmail(), user.getRole());
+        return new AuthResponse(token, refreshToken, saved.getId().toString(), saved.getEmail(), saved.getRole(),
+            permissionNames(saved));
     }
 
     public AuthResponse authenticate(AuthRequest request) {
@@ -53,6 +59,8 @@ public class AuthenticationService {
 
         var user = userRepository.findByEmail(request.email())
             .orElseThrow(() -> new AuthenticationException("Invalid email or password"));
+        user.setLastLoginAt(Instant.now());
+        userRepository.save(user);
 
         var userDetails = new org.springframework.security.core.userdetails.User(
             user.getEmail(), user.getPasswordHash(), java.util.Collections.emptyList());
@@ -60,7 +68,8 @@ public class AuthenticationService {
         var token = jwtService.generateToken(userDetails);
         var refreshToken = jwtService.generateRefreshToken(userDetails);
 
-        return new AuthResponse(token, refreshToken, user.getId().toString(), user.getEmail(), user.getRole());
+        return new AuthResponse(token, refreshToken, user.getId().toString(), user.getEmail(), user.getRole(),
+            permissionNames(user));
     }
 
     public AuthResponse refreshToken(String authHeader) {
@@ -77,6 +86,9 @@ public class AuthenticationService {
 
         var user = userRepository.findByEmail(email)
             .orElseThrow(() -> new AuthenticationException("User not found"));
+        if (!user.isEnabled()) {
+            throw new AuthenticationException("This account is disabled");
+        }
 
         var userDetails = new org.springframework.security.core.userdetails.User(
             user.getEmail(), user.getPasswordHash(), java.util.Collections.emptyList());
@@ -84,7 +96,8 @@ public class AuthenticationService {
         var newToken = jwtService.generateToken(userDetails);
         var newRefreshToken = jwtService.generateRefreshToken(userDetails);
 
-        return new AuthResponse(newToken, newRefreshToken, user.getId().toString(), user.getEmail(), user.getRole());
+        return new AuthResponse(newToken, newRefreshToken, user.getId().toString(), user.getEmail(), user.getRole(),
+            permissionNames(user));
     }
 
     /**
@@ -96,6 +109,14 @@ public class AuthenticationService {
     public UserInfoResponse currentUser(String email) {
         var user = userRepository.findByEmail(email)
             .orElseThrow(() -> new AuthenticationException("User not found"));
-        return new UserInfoResponse(user.getId().toString(), user.getEmail(), user.getRole());
+        return new UserInfoResponse(user.getId().toString(), user.getEmail(), user.getRole(), permissionNames(user));
+    }
+
+    /** Effective permissions as sorted names, for clients to show or hide features. */
+    private List<String> permissionNames(User user) {
+        return accessService.effectivePermissions(user.getId(), user.getRole()).stream()
+            .map(Enum::name)
+            .sorted()
+            .toList();
     }
 }

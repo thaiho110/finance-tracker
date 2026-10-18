@@ -8,6 +8,7 @@ import com.financetracker.ocr.exception.OcrException;
 import com.financetracker.ocr.extract.ReceiptOcrEngine;
 import com.financetracker.ocr.extract.ReceiptOcrEngine.Layout;
 import com.financetracker.ocr.extract.ReceiptWarnings;
+import com.financetracker.transaction.intake.TransactionIntake;
 import com.financetracker.transaction.service.DeduplicationService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -65,10 +66,10 @@ class OcrServiceTest {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        ocrService = new OcrService(categorizationService, deduplicationService, ocrEngine, meterRegistry, new OcrProperties());
+        TransactionIntake intake = new TransactionIntake(categorizationService, deduplicationService);
+        ocrService = new OcrService(categorizationService, intake, ocrEngine, meterRegistry, new OcrProperties());
         ocrService.setClock(Clock.fixed(Instant.parse("2026-10-18T03:00:00Z"), ZoneOffset.UTC));
         lenient().when(categorizationService.knownMerchantKeywords()).thenReturn(List.of("BACH HOA XANH"));
-        lenient().when(categorizationService.cleanMerchant(anyString())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(categorizationService.categorize(anyString())).thenReturn("Food & Dining");
     }
 
@@ -114,7 +115,7 @@ class OcrServiceTest {
         assertThat(response.lineItems()).extracting(ParsedReceiptResponse.LineItem::item)
             .containsExactly("RAU MUONG", "GAO ST25 2KG");
         assertThat(response.warnings()).isEmpty();
-        verify(categorizationService).categorize("BACH HOA XANH");
+        verify(categorizationService).categorize("Bach Hoa Xanh");
         verify(ocrEngine, never()).recognize(any(), eq(Layout.FALLBACK));
         assertThat(meterRegistry.counter("finance.ocr.receipts", "outcome", "ok").count()).isEqualTo(1.0);
     }

@@ -1,5 +1,7 @@
 package com.financetracker.auth.service;
 
+import com.financetracker.access.model.Permission;
+import com.financetracker.access.service.AccessService;
 import com.financetracker.auth.dto.AuthRequest;
 import com.financetracker.auth.dto.AuthResponse;
 import com.financetracker.auth.dto.RegisterRequest;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,6 +23,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
@@ -34,6 +38,7 @@ class AuthenticationServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
     @Mock private AuthenticationManager authenticationManager;
+    @Mock private AccessService accessService;
 
     @InjectMocks private AuthenticationService authService;
 
@@ -49,7 +54,7 @@ class AuthenticationServiceTest {
             .id(UUID.randomUUID())
             .email("test@example.com")
             .passwordHash("encoded-password")
-            .role("user")
+            .role("USER")
             .build();
     }
 
@@ -68,7 +73,7 @@ class AuthenticationServiceTest {
         assertThat(response.token()).isEqualTo("access-token");
         assertThat(response.refreshToken()).isEqualTo("refresh-token");
         assertThat(response.email()).isEqualTo("test@example.com");
-        assertThat(response.role()).isEqualTo("user");
+        assertThat(response.role()).isEqualTo("USER");
 
         verify(userRepository).save(any(User.class));
     }
@@ -150,7 +155,47 @@ class AuthenticationServiceTest {
 
         assertThat(me.id()).isEqualTo(testUser.getId().toString());
         assertThat(me.email()).isEqualTo("test@example.com");
-        assertThat(me.role()).isEqualTo("user");
+        assertThat(me.role()).isEqualTo("USER");
+    }
+
+    @Test
+    @DisplayName("Should return the user's effective permissions, sorted")
+    void shouldReturnPermissions() {
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+        when(accessService.effectivePermissions(testUser.getId(), "USER"))
+            .thenReturn(Set.of(Permission.TRANSACTION_READ, Permission.CSV_IMPORT));
+
+        UserInfoResponse me = authService.currentUser("test@example.com");
+
+        assertThat(me.permissions()).containsExactly("CSV_IMPORT", "TRANSACTION_READ");
+    }
+
+    @Test
+    @DisplayName("Should give a new account the role chosen by the access rules")
+    void shouldUseInitialRoleFromAccessRules() {
+        when(userRepository.existsByEmail("test@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
+        when(accessService.initialRoleFor("test@example.com")).thenReturn("SUPER_ADMIN");
+        when(userRepository.save(any(User.class))).thenReturn(testUser);
+
+        authService.register(registerRequest);
+
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(saved.capture());
+        assertThat(saved.getValue().getRole()).isEqualTo("SUPER_ADMIN");
+    }
+
+    @Test
+    @DisplayName("Should not refresh tokens for a disabled account")
+    void shouldRejectRefreshForDisabledAccount() {
+        testUser.setEnabled(false);
+        when(jwtService.extractUsername("valid-refresh-token")).thenReturn("test@example.com");
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+
+        assertThatThrownBy(() -> authService.refreshToken("Bearer valid-refresh-token"))
+            .isInstanceOf(AuthenticationException.class)
+            .hasMessageContaining("disabled");
+        verify(jwtService, never()).generateToken(any());
     }
 
     @Test

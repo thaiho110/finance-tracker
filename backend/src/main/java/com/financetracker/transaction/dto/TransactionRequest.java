@@ -32,9 +32,8 @@ public record TransactionRequest(
     @Schema(description = "Receipt line items; saved only for OCR transactions", nullable = true)
     @Valid List<ReceiptLineItemRequest> lineItems
 ) {
-    /** A transaction without receipt line items (CSV, manual entry, updates). */
-    public TransactionRequest(LocalDate date, String rawDescription, String cleanMerchant,
-                              BigDecimal amount, String category, String sourceType) {
-        this(date, rawDescription, cleanMerchant, amount, category, sourceType, null);
+    /** Copies the line items so the request can't be changed through the caller's list. */
+    public TransactionRequest {
+        lineItems = lineItems == null ? null : List.copyOf(lineItems);
     }
 }
