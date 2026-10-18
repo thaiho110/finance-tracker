@@ -1,3 +1,6 @@
+// Alloy has no pipeline block: components are wired through their output blocks.
+// Flow: otlp receiver -> batch -> prometheus / loki / tempo exporters
+
 // Receive OTLP data from Spring Boot
 otelcol.receiver.otlp "default" {
   grpc {
@@ -6,12 +9,24 @@ otelcol.receiver.otlp "default" {
   http {
     endpoint = "0.0.0.0:4318"
   }
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+    traces  = [otelcol.processor.batch.default.input]
+  }
 }
 
 // Batch before exporting
 otelcol.processor.batch "default" {
   timeout = "1s"
   send_batch_size = 1024
+
+  output {
+    metrics = [otelcol.exporter.prometheus.default.input]
+    logs    = [otelcol.exporter.loki.default.input]
+    traces  = [otelcol.exporter.otlp.tempo.input]
+  }
 }
 
 // Export to Prometheus (metrics)
@@ -44,15 +59,4 @@ loki.write "default" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
   }
-}
-
-// Pipeline — connects receiver → processor → exporters
-otelcol.pipeline "default" {
-  receiver  = otelcol.receiver.otlp.default
-  processor = [otelcol.processor.batch.default]
-  exporter  = [
-    otelcol.exporter.prometheus.default,
-    otelcol.exporter.otlp.tempo,
-    otelcol.exporter.loki.default,
-  ]
 }
