@@ -1,5 +1,6 @@
 package com.financetracker.auth.config;
 
+import com.financetracker.auth.filter.DeviceApiKeyAuthenticationFilter;
 import com.financetracker.auth.filter.JwtAuthenticationFilter;
 import com.financetracker.common.filter.RateLimitingFilter;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,7 @@ import static com.financetracker.access.model.Permission.USER_SUSPEND;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final DeviceApiKeyAuthenticationFilter deviceApiKeyAuthFilter;
     private final RateLimitingFilter rateLimitingFilter;
     private final UserDetailsConfig userDetailsService;
 
@@ -88,6 +90,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/admin/registration").hasAuthority(ROLE_MANAGE.name())
                 .requestMatchers(HttpMethod.GET, "/api/v1/admin/invites").hasAuthority(USER_READ.name())
                 .requestMatchers("/api/v1/admin/invites/**").hasAuthority(USER_CREATE.name())
+                // Device API keys (ADR-016): read with USER_READ, create and revoke with USER_CREATE.
+                .requestMatchers(HttpMethod.GET, "/api/v1/admin/device-keys").hasAuthority(USER_READ.name())
+                .requestMatchers("/api/v1/admin/device-keys/**").hasAuthority(USER_CREATE.name())
+                .requestMatchers(HttpMethod.POST, "/api/v1/admin/device-keys").hasAuthority(USER_CREATE.name())
                 .requestMatchers("/api/v1/admin/**").denyAll()
 
                 .anyRequest().authenticated()
@@ -97,7 +103,10 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class)
+            // A device key authenticates only when no bearer token already did; rate limiting then scopes by
+            // the resolved principal, so the order is JWT → device key → rate limiting.
+            .addFilterAfter(deviceApiKeyAuthFilter, JwtAuthenticationFilter.class)
+            .addFilterAfter(rateLimitingFilter, DeviceApiKeyAuthenticationFilter.class)
             .build();
     }
 

@@ -75,6 +75,26 @@ export interface CreatedInvite {
   expiresAt: string;
 }
 
+export interface DeviceKey {
+  id: string;
+  label: string;
+  userId: string;
+  ownerEmail: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revoked: boolean;
+  revokedAt: string | null;
+}
+
+export interface CreatedDeviceKey {
+  id: string;
+  /** The raw key, shown only once. */
+  key: string;
+  userId: string;
+  ownerEmail: string | null;
+  label: string;
+}
+
 export const adminApi = api.injectEndpoints({
   endpoints: (builder) => ({
     listUsers: builder.query<Page<AdminUser>, { page: number; size: number }>({
@@ -140,6 +160,18 @@ export const adminApi = api.injectEndpoints({
       query: (id) => ({ url: `/admin/invites/${id}`, method: 'DELETE' }),
       invalidatesTags: ['Invite', 'Audit'],
     }),
+    listDeviceKeys: builder.query<DeviceKey[], void>({
+      query: () => '/admin/device-keys',
+      providesTags: ['DeviceKey'],
+    }),
+    createDeviceKey: builder.mutation<CreatedDeviceKey, { userId: string; label: string }>({
+      query: (body) => ({ url: '/admin/device-keys', method: 'POST', body }),
+      invalidatesTags: ['DeviceKey', 'Audit'],
+    }),
+    revokeDeviceKey: builder.mutation<void, string>({
+      query: (id) => ({ url: `/admin/device-keys/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['DeviceKey', 'Audit'],
+    }),
   }),
 });
 
@@ -159,6 +191,9 @@ export const {
   useListInvitesQuery,
   useCreateInviteMutation,
   useRevokeInviteMutation,
+  useListDeviceKeysQuery,
+  useCreateDeviceKeyMutation,
+  useRevokeDeviceKeyMutation,
 } = adminApi;
 
 /** "USER_DISABLED" → "User disabled", "CSV_IMPORT" → "Csv import" (for codes without a nicer label). */
