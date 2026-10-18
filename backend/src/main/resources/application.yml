@@ -69,6 +69,9 @@ logging:
 
 # ── Application-specific ──
 app:
+  access:
+    # First super admin (ADR-018); blank = none
+    super-admin-email: ${APP_SUPER_ADMIN_EMAIL:}
   metrics:
     enabled: true
   rate-limiting:

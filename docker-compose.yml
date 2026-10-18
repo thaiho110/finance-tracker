@@ -25,6 +25,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      APP_SUPER_ADMIN_EMAIL: ${APP_SUPER_ADMIN_EMAIL:-}
       JWT_SECRET: ${JWT_SECRET:-finance-tracker-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
       OTEL_SERVICE_NAME: finance-tracker-backend

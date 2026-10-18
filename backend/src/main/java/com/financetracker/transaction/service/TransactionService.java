@@ -104,6 +104,11 @@ public class TransactionService {
         transactionRepository.delete(transaction);
     }
 
+    /** How many transactions the user has saved (used by administration, which never sees the transactions). */
+    public long countFor(UUID userId) {
+        return transactionRepository.countByCreatedBy(userId);
+    }
+
     public List<String> getCategories(UUID userId) {
         return transactionRepository.findDistinctCategoriesByCreatedBy(userId);
     }
