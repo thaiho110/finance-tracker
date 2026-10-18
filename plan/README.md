@@ -759,6 +759,7 @@ Order: 14a (user id fix + disable the API key filter) → 15 → 13 → rest of 
 | 015 | User-Owned Categories and Categorization Rules (proposed) | [adr/015-user-categories-and-rules.md](./adr/015-user-categories-and-rules.md) |
 | 016 | Admin Area (proposed) | [adr/016-admin-area.md](./adr/016-admin-area.md) |
 | 017 | nginx Reverse Proxy and Local URLs (proposed) | [adr/017-nginx-reverse-proxy.md](./adr/017-nginx-reverse-proxy.md) |
+| 018 | Role Table, Permissions per Domain, Per-User Features | [adr/018-roles-permissions-features.md](./adr/018-roles-permissions-features.md) |
 
 ---
 

@@ -1,6 +1,6 @@
 # ADR-016: Admin Area
 
-**Status:** Proposed  
+**Status:** Accepted, roles amended by [ADR-018](./018-roles-permissions-features.md)  
 **Date:** 2026-10-18  
 **Deciders:** Thai Ho  
 **Related:** [ADR-009](./009-multi-client-api.md) (Multi-Client API), [ADR-015](./015-user-categories-and-rules.md) (Categories)
