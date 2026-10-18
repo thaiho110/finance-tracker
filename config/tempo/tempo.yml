@@ -8,13 +8,14 @@ distributor:
         grpc:
           endpoint: "0.0.0.0:4317"
 
+# The image runs as user tempo (10001); /var/tempo is the directory it owns.
 storage:
   trace:
     backend: local
     local:
-      path: /tmp/tempo/blocks
+      path: /var/tempo/blocks
     wal:
-      path: /tmp/tempo/wal
+      path: /var/tempo/wal
 
 compactor:
   compaction:
@@ -24,4 +25,4 @@ metrics_generator:
   registry:
     collection_interval: 15s
   storage:
-    path: /tmp/tempo/generated
+    path: /var/tempo/generated
