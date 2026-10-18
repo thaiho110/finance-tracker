@@ -34,7 +34,9 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     // Flyway
-    implementation("org.flywaydb:flyway-core")
+    // Spring Boot 4 moved Flyway's auto-configuration into its own module: without this starter
+    // flyway-core sits on the classpath but migrations never run.
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")
 
     // CSV Parsing

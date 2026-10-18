@@ -13,7 +13,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none   # Flyway owns the schema (db/migration); Hibernate must not create or alter tables
     open-in-view: false
     properties:
       hibernate:
@@ -126,7 +126,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none   # Flyway owns the schema (db/migration); Hibernate must not create or alter tables
     show-sql: true
 
   flyway:
