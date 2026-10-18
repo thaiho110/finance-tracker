@@ -34,13 +34,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
                                     @Param("dateTo") LocalDate dateTo,
                                     Pageable pageable);
 
-    @Query("SELECT COUNT(t) > 0 FROM Transaction t WHERE t.createdBy = :createdBy " +
-           "AND t.date = :date AND t.amount = :amount " +
-           "AND t.createdAt > :since")
+    @Query("SELECT COUNT(t) > 0 FROM Transaction t WHERE t.createdBy = :createdBy "
+           + "AND t.amount = :amount AND t.date BETWEEN :dateFrom AND :dateTo")
     boolean existsDuplicate(@Param("createdBy") UUID createdBy,
-                            @Param("date") LocalDate date,
-                            @Param("amount") BigDecimal amount,
-                            @Param("since") java.time.Instant since);
+                            @Param("dateFrom") LocalDate dateFrom,
+                            @Param("dateTo") LocalDate dateTo,
+                            @Param("amount") BigDecimal amount);
 
     @Query("SELECT DISTINCT t.category FROM Transaction t WHERE t.createdBy = :createdBy ORDER BY t.category")
     List<String> findDistinctCategoriesByCreatedBy(@Param("createdBy") UUID createdBy);

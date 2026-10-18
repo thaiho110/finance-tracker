@@ -9,12 +9,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,5 +52,25 @@ class DeduplicationServiceTest {
         boolean result = deduplicationService.isDuplicate(userId, date, amount);
 
         assertThat(result).isFalse();
+    }
+
+    @Test
+    @DisplayName("Should look two days either side of the transaction date")
+    void shouldUseTransactionDateWindow() {
+        UUID userId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 9, 5);
+        BigDecimal amount = BigDecimal.valueOf(45_000);
+
+        deduplicationService.isDuplicate(userId, date, amount);
+
+        verify(transactionRepository).existsDuplicate(userId, LocalDate.of(2026, 9, 3), LocalDate.of(2026, 9, 7), amount);
+    }
+
+    @Test
+    @DisplayName("Should not query when the date or amount is missing")
+    void shouldSkipIncompleteValues() {
+        assertThat(deduplicationService.isDuplicate(UUID.randomUUID(), null, BigDecimal.TEN)).isFalse();
+        assertThat(deduplicationService.isDuplicate(UUID.randomUUID(), LocalDate.of(2026, 9, 5), null)).isFalse();
+        verifyNoInteractions(transactionRepository);
     }
 }

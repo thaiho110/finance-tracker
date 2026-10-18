@@ -1,8 +1,10 @@
 package com.financetracker.csv.service;
 
-import com.financetracker.category.service.CategorizationService;
 import com.financetracker.common.dto.ParsedTransactionResponse;
-import com.financetracker.transaction.service.DeduplicationService;
+import com.financetracker.transaction.intake.DraftTransaction;
+import com.financetracker.transaction.intake.LocalValues;
+import com.financetracker.transaction.intake.RawEntry;
+import com.financetracker.transaction.intake.TransactionIntake;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -10,135 +12,95 @@ import org.apache.commons.csv.CSVRecord;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.io.InputStreamReader;
-import java.math.BigDecimal;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * CSV adapter for {@link TransactionIntake}: finds the date, description and amount columns of a bank
+ * statement, reads each row into a {@link RawEntry}, and lets the intake categorize and check duplicates.
+ * Cells that can't be read become null so the review grid can ask the user to fill them in.
+ */
 @Service
 @RequiredArgsConstructor
 public class CsvImportService {
 
-    private static final Map<String, String> HEADER_MAPPING = new HashMap<>();
-    static {
-        HEADER_MAPPING.put("date", "date");
-        HEADER_MAPPING.put("transaction date", "date");
-        HEADER_MAPPING.put("post date", "date");
-        HEADER_MAPPING.put("description", "rawDescription");
-        HEADER_MAPPING.put("payee", "rawDescription");
-        HEADER_MAPPING.put("name", "rawDescription");
-        HEADER_MAPPING.put("memo", "rawDescription");
-        HEADER_MAPPING.put("amount", "amount");
-        HEADER_MAPPING.put("debit", "amount");
-        HEADER_MAPPING.put("credit", "amount");
-        HEADER_MAPPING.put("total", "amount");
-        HEADER_MAPPING.put("value", "amount");
-    }
+    /** Accepted header names (compared in lower case), in order of preference. */
+    private static final List<String> DATE_HEADERS = List.of(
+        "date", "transaction date", "post date", "posting date", "ngày", "ngày giao dịch", "ngay giao dich");
+    private static final List<String> DESCRIPTION_HEADERS = List.of(
+        "description", "payee", "name", "memo", "merchant", "mô tả", "nội dung", "noi dung", "diễn giải");
+    private static final List<String> AMOUNT_HEADERS = List.of(
+        "amount", "debit", "credit", "total", "value", "số tiền", "so tien", "ghi nợ", "ghi có");
 
-    private static final List<DateTimeFormatter> DATE_FORMATS = List.of(
-        DateTimeFormatter.ISO_LOCAL_DATE,
-        DateTimeFormatter.ofPattern("MM/dd/yyyy"),
-        DateTimeFormatter.ofPattern("dd/MM/yyyy"),
-        DateTimeFormatter.ofPattern("M/d/yyyy"),
-        DateTimeFormatter.ofPattern("yyyy/MM/dd"),
-        DateTimeFormatter.ofPattern("dd-MM-yyyy"),
-        DateTimeFormatter.ofPattern("MM-dd-yyyy")
-    );
+    private static final String BYTE_ORDER_MARK = "\uFEFF";
 
-    private final CategorizationService categorizationService;
-    private final DeduplicationService deduplicationService;
+    private final TransactionIntake intake;
 
     public List<ParsedTransactionResponse> parse(MultipartFile file, UUID userId) {
-        List<ParsedTransactionResponse> results = new ArrayList<>();
+        List<DraftTransaction> drafts = intake.draft(userId, readEntries(file));
+        List<ParsedTransactionResponse> rows = new ArrayList<>(drafts.size());
+        for (int rowIndex = 0; rowIndex < drafts.size(); rowIndex++) {
+            DraftTransaction draft = drafts.get(rowIndex);
+            rows.add(new ParsedTransactionResponse(rowIndex, draft.date(), draft.rawDescription(),
+                draft.cleanMerchant(), draft.amount(), draft.category(), draft.duplicate()));
+        }
+        return rows;
+    }
 
+    private List<RawEntry> readEntries(MultipartFile file) {
         try (InputStreamReader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8);
              CSVParser parser = CSVFormat.DEFAULT
                  .withFirstRecordAsHeader()
                  .withTrim()
                  .parse(reader)) {
-
-            Map<String, Integer> headerIndex = parser.getHeaderMap();
-            int rowIndex = 0;
-
-            for (CSVRecord record : parser) {
-                try {
-                    ParsedTransactionResponse parsed = mapToResponse(record, headerIndex, userId, rowIndex);
-                    results.add(parsed);
-                } catch (Exception e) {
-                    // Skip malformed rows
-                    results.add(new ParsedTransactionResponse(
-                        rowIndex, null, record.toString(), "PARSE_ERROR",
-                        BigDecimal.ZERO, "Other", false));
-                }
-                rowIndex++;
+            Map<String, Integer> headers = normalizeHeaders(parser.getHeaderMap());
+            List<Integer> dateColumns = columns(headers, DATE_HEADERS);
+            List<Integer> descriptionColumns = columns(headers, DESCRIPTION_HEADERS);
+            List<Integer> amountColumns = columns(headers, AMOUNT_HEADERS);
+            List<RawEntry> entries = new ArrayList<>();
+            for (CSVRecord row : parser) {
+                entries.add(new RawEntry(
+                    LocalValues.parseDate(firstValue(row, dateColumns)),
+                    firstValue(row, descriptionColumns),
+                    LocalValues.parseAmount(firstValue(row, amountColumns))));
             }
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to parse CSV: " + e.getMessage());
+            return entries;
+        } catch (IOException | UncheckedIOException | IllegalStateException e) {
+            throw new IllegalArgumentException("Failed to parse CSV: " + e.getMessage(), e);
         }
-
-        return results;
     }
 
-    private ParsedTransactionResponse mapToResponse(CSVRecord record, Map<String, Integer> headerIndex,
-                                                     UUID userId, int rowIndex) {
-        String rawDescription = getField(record, headerIndex, "rawDescription", "");
-        String cleanMerchant = categorizationService.cleanMerchant(rawDescription);
-        String category = categorizationService.categorize(rawDescription);
-        LocalDate date = parseDate(getField(record, headerIndex, "date", ""));
-        BigDecimal amount = parseAmount(getField(record, headerIndex, "amount", "0"));
-        boolean isDuplicate = deduplicationService.isDuplicate(userId, date, amount);
-
-        return new ParsedTransactionResponse(rowIndex, date, rawDescription, cleanMerchant, amount, category, isDuplicate);
+    /** Header name (lower case, no byte-order mark) → column index. */
+    private static Map<String, Integer> normalizeHeaders(Map<String, Integer> headerMap) {
+        Map<String, Integer> headers = new HashMap<>();
+        if (headerMap != null) {
+            headerMap.forEach((name, index) ->
+                headers.putIfAbsent(name.replace(BYTE_ORDER_MARK, "").strip().toLowerCase(Locale.ROOT), index));
+        }
+        return headers;
     }
 
-    private String getField(CSVRecord record, Map<String, Integer> headerIndex, String canonicalName, String defaultValue) {
-        // Build a case-insensitive header map
-        Map<String, Integer> ciHeaders = new HashMap<>();
-        headerIndex.forEach((key, value) -> ciHeaders.put(key.toLowerCase(), value));
-
-        for (Map.Entry<String, String> entry : HEADER_MAPPING.entrySet()) {
-            if (entry.getValue().equals(canonicalName)) {
-                Integer idx = ciHeaders.get(entry.getKey());
-                if (idx != null) {
-                    String value = record.get(idx);
-                    if (value != null && !value.isBlank()) {
-                        return value.trim();
-                    }
-                }
-            }
-        }
-        return defaultValue;
+    /** Indexes of the columns present in this file for one field, in preference order. */
+    private static List<Integer> columns(Map<String, Integer> headers, List<String> names) {
+        return names.stream().filter(headers::containsKey).map(headers::get).toList();
     }
 
-    private LocalDate parseDate(String value) {
-        if (value == null || value.isBlank()) {
-            return LocalDate.now();
-        }
-        for (DateTimeFormatter fmt : DATE_FORMATS) {
-            try {
-                return LocalDate.parse(value.trim(), fmt);
-            } catch (DateTimeParseException ignored) {
-                // continue trying next format
-            }
-        }
-        return LocalDate.now();
-    }
-
-    private BigDecimal parseAmount(String value) {
-        if (value == null || value.isBlank()) {
-            return BigDecimal.ZERO;
-        }
-        try {
-            return new BigDecimal(value.replaceAll("[^\\d.-]", ""));
-        } catch (NumberFormatException e) {
-            return BigDecimal.ZERO;
-        }
+    /** The first non-blank cell among {@code columns}, or "" when there is none. */
+    private static String firstValue(CSVRecord row, List<Integer> columns) {
+        return columns.stream()
+            .filter(column -> column < row.size())
+            .map(row::get)
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::strip)
+            .findFirst()
+            .orElse("");
     }
 }

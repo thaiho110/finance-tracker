@@ -538,7 +538,7 @@ function CsvImport({ categories }: { categories: string[] }) {
                     <td className="td-base py-1.5 pr-1">
                       <div className="flex items-center gap-1.5">
                         {row.isDuplicate && (
-                          <span title="Possible duplicate of a saved transaction">
+                          <span title="Possible duplicate of a saved transaction or an earlier row in this file">
                             <AlertTriangle className="size-3.5 shrink-0 text-status-warning" />
                           </span>
                         )}
