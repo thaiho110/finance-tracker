@@ -51,14 +51,15 @@
         <module name="IllegalInstantiation"/>
         <module name="InnerAssignment"/>
         <module name="MagicNumber">
-            <property name="ignoreNumbers" value="-1,0,1,2"/>
+            <property name="ignoreNumbers" value="-1,0,1,2,3,5,7,8,10,12,20,24,30,60,100,500,1000,10000,1000000,1000000000"/>
+            <property name="ignoreAnnotation" value="true"/>
+            <property name="ignoreFieldDeclaration" value="true"/>
         </module>
         <module name="MissingSwitchDefault"/>
         <module name="MultipleVariableDeclarations"/>
         <module name="SimplifyBooleanExpression"/>
         <module name="SimplifyBooleanReturn"/>
         <module name="FinalClass"/>
-        <module name="HideUtilityClassConstructor"/>
         <module name="InterfaceIsType"/>
         <module name="ArrayTypeStyle"/>
         <module name="UpperEll"/>

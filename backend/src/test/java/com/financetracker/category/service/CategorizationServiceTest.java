@@ -1,79 +1,162 @@
 package com.financetracker.category.service;
 
-import com.financetracker.category.model.CategoryMapping;
-import com.financetracker.category.repository.CategoryMappingRepository;
+import com.financetracker.category.model.Category;
+import com.financetracker.category.model.CategoryKind;
+import com.financetracker.category.model.CategoryRule;
+import com.financetracker.category.repository.CategoryRepository;
+import com.financetracker.category.repository.CategoryRuleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("CategorizationService Unit Tests")
+@MockitoSettings(strictness = Strictness.LENIENT)
+@DisplayName("CategorizationService")
 class CategorizationServiceTest {
 
-    @Mock private CategoryMappingRepository repository;
+    private static final UUID USER = UUID.randomUUID();
 
-    @InjectMocks private CategorizationService categorizationService;
+    @Mock private CategoryRepository categories;
+    @Mock private CategoryRuleRepository rules;
+
+    private CategorizationService service;
+    private final Map<String, Category> byName = new HashMap<>();
+    private final List<CategoryRule> systemRules = new ArrayList<>();
+    private final List<CategoryRule> userRules = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
-        List<CategoryMapping> mappings = List.of(
-            CategoryMapping.builder().keyword("STARBUCKS").category("Coffee Shop").build(),
-            CategoryMapping.builder().keyword("AMAZON").category("Online Shopping").build(),
-            CategoryMapping.builder().keyword("UBER").category("Transportation").build(),
-            CategoryMapping.builder().keyword("MCDONALDS").category("Fast Food").build()
-        );
-        when(repository.findAll()).thenReturn(mappings);
-        categorizationService.refreshCache();
+        service = new CategorizationService(categories, rules);
+        system("Other");
+        systemRule("STARBUCKS", system("Coffee Shop"));
+        systemRule("PHUC LONG", byName.get("Coffee Shop"));
+        systemRule("AMAZON", system("Online Shopping"));
+        systemRule("UBER", system("Transportation"));
+        systemRule("GAS", byName.get("Transportation"));
+        systemRule("TARGET", system("Shopping"));
+        systemRule("TARGET OPTICAL", system("Health"));
+
+        when(categories.findSystemByName("Other")).thenReturn(Optional.of(byName.get("Other")));
+        when(categories.findByIdIn(any())).thenAnswer(inv -> List.copyOf(byName.values()));
+        when(categories.findHiddenIds(any())).thenReturn(Set.of());
+        when(rules.findSystem()).thenReturn(systemRules);
+        when(rules.findByUserIdOrderByKeyword(USER)).thenReturn(userRules);
+    }
+
+    private Category system(String name) {
+        Category category = Category.builder().id(UUID.randomUUID()).name(name).kind(CategoryKind.EXPENSE).build();
+        byName.put(name, category);
+        return category;
+    }
+
+    private void systemRule(String keyword, Category category) {
+        systemRules.add(CategoryRule.builder().id(UUID.randomUUID()).keyword(keyword).categoryId(category.getId()).build());
+    }
+
+    private String categorize(String merchant) {
+        return service.categorize(USER, merchant).name();
     }
 
     @Test
-    @DisplayName("Should categorize known merchant")
-    void shouldCategorizeKnownMerchant() {
-        assertThat(categorizationService.categorize("STARBUCKS")).isEqualTo("Coffee Shop");
-        assertThat(categorizationService.categorize("AMAZON")).isEqualTo("Online Shopping");
-        assertThat(categorizationService.categorize("UBER")).isEqualTo("Transportation");
-        assertThat(categorizationService.categorize("MCDONALDS")).isEqualTo("Fast Food");
+    @DisplayName("finds the category of a known merchant, and Other otherwise")
+    void knownAndUnknownMerchants() {
+        assertThat(categorize("STARBUCKS")).isEqualTo("Coffee Shop");
+        assertThat(categorize("AMAZON WEB SERVICES")).isEqualTo("Online Shopping");
+        assertThat(categorize("UNKNOWN_STORE")).isEqualTo("Other");
+        assertThat(categorize("")).isEqualTo("Other");
+        assertThat(categorize(null)).isEqualTo("Other");
+        assertThat(categorize("   ")).isEqualTo("Other");
     }
 
     @Test
-    @DisplayName("Should return 'Other' for unknown merchant")
-    void shouldReturnOtherForUnknown() {
-        assertThat(categorizationService.categorize("UNKNOWN_STORE")).isEqualTo("Other");
+    @DisplayName("cleans store numbers and extra whitespace from the merchant")
+    void cleansMerchant() {
+        assertThat(service.cleanMerchant("STARBUCKS #12345")).isEqualTo("STARBUCKS");
+        assertThat(service.cleanMerchant("  AMAZON   PRIME  ")).isEqualTo("AMAZON PRIME");
     }
 
     @Test
-    @DisplayName("Should return 'Other' for empty input")
-    void shouldReturnOtherForEmpty() {
-        assertThat(categorizationService.categorize("")).isEqualTo("Other");
-        assertThat(categorizationService.categorize(null)).isEqualTo("Other");
-        assertThat(categorizationService.categorize("   ")).isEqualTo("Other");
+    @DisplayName("prefers the longest matching keyword")
+    void longestKeywordWins() {
+        assertThat(categorize("TARGET OPTICAL #88")).isEqualTo("Health");
+        assertThat(categorize("TARGET STORE")).isEqualTo("Shopping");
     }
 
     @Test
-    @DisplayName("Should clean merchant name by removing store numbers")
-    void shouldRemoveStoreNumbers() {
-        assertThat(categorizationService.cleanMerchant("STARBUCKS #12345")).isEqualTo("STARBUCKS");
+    @DisplayName("matches keywords only as whole words")
+    void wholeWordsOnly() {
+        assertThat(categorize("VEGAS BAR")).isEqualTo("Other");
+        assertThat(categorize("SHELL GAS STATION")).isEqualTo("Transportation");
     }
 
     @Test
-    @DisplayName("Should clean merchant name by normalizing whitespace")
-    void shouldNormalizeWhitespace() {
-        assertThat(categorizationService.cleanMerchant("  AMAZON   PRIME  ")).isEqualTo("AMAZON PRIME");
+    @DisplayName("ignores case and Vietnamese accents")
+    void ignoresCaseAndAccents() {
+        assertThat(categorize("Phúc Long Coffee & Tea")).isEqualTo("Coffee Shop");
+        assertThat(categorize("phuc long")).isEqualTo("Coffee Shop");
+        assertThat(categorize("starbucks #12345")).isEqualTo("Coffee Shop");
     }
 
     @Test
-    @DisplayName("Should categorize by partial match")
-    void shouldCategorizeByPartialMatch() {
-        assertThat(categorizationService.categorize("STARBUCKS COFFEE #456")).isEqualTo("Coffee Shop");
-        assertThat(categorizationService.categorize("AMAZON WEB SERVICES")).isEqualTo("Online Shopping");
+    @DisplayName("a user's rule beats a system rule, even a longer one")
+    void userRuleWins() {
+        Category pets = Category.builder().id(UUID.randomUUID()).name("Pets").userId(USER).build();
+        byName.put("Pets", pets);
+        userRules.add(CategoryRule.builder().userId(USER).keyword("TARGET").categoryId(pets.getId()).build());
+
+        assertThat(categorize("TARGET OPTICAL")).isEqualTo("Pets");
+    }
+
+    @Test
+    @DisplayName("skips rules whose category is archived or hidden by the user")
+    void skipsArchivedAndHidden() {
+        byName.get("Online Shopping").setArchived(true);
+        when(categories.findHiddenIds(USER)).thenReturn(Set.of(byName.get("Transportation").getId()));
+
+        assertThat(categorize("AMAZON")).isEqualTo("Other");
+        assertThat(categorize("UBER")).isEqualTo("Other");
+        assertThat(categorize("STARBUCKS")).isEqualTo("Coffee Shop");
+    }
+
+    @Test
+    @DisplayName("caches rules per user until evicted")
+    void cachesUntilEvicted() {
+        categorize("STARBUCKS");
+        categorize("UBER");
+        verify(rules, times(1)).findByUserIdOrderByKeyword(USER);
+
+        service.evictUser(USER);
+        categorize("STARBUCKS");
+        verify(rules, times(2)).findByUserIdOrderByKeyword(USER);
+        verify(rules, never()).findSystemByKeyword(anyString());
+    }
+
+    @Test
+    @DisplayName("matches() follows the same whole-word, accent-free rules")
+    void matchesHelper() {
+        assertThat(service.matches("highlands coffee", "HIGHLANDS COFFEE #12 Q1")).isTrue();
+        assertThat(service.matches("GAS", "VEGAS")).isFalse();
+        assertThat(service.matches("PHUC LONG", "Phúc Long")).isTrue();
     }
 }

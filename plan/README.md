@@ -710,12 +710,24 @@ volumes:
 
 | Phase | Duration | Deliverables |
 |-------|----------|-------------|
-| **Phase 9: Shared Package** | Day 1–2 | `packages/shared/` — TypeScript types mirroring backend DTOs, `ApiClient` class with JWT + `X-Client-Id` headers, `TokenStorage` interface, shared validation rules |
-| **Phase 10: Web App** | Week 1–3 | Vite + React + Tailwind + shadcn/ui (per ADR-007, ADR-011). Pages in order: Login → Transaction list (paginated table) → CSV upload (drag-and-drop + preview grid) → Dashboard (category breakdown, charts) |
-| **Phase 11: Desktop App** | Week 4–5 | Electron + electron-vite wrapping web React components. Platform-specific: file dialogs, secure token storage via `safeStorage`, system tray |
-| **Phase 12: Mobile App** | Week 6–8 | Bare React Native with React Navigation. Platform-specific: camera for receipts, document picker for CSV, Keychain/Keystore for JWT. Future migration path to native Android/Swift |
+| **Phase 9: Shared Package** ✅ | Day 1–2 | `packages/shared/` — TypeScript types mirroring backend DTOs, `ApiClient` class with JWT + `X-Client-Id` headers, `TokenStorage` interface, shared validation rules |
+| **Phase 10: Web App** ✅ | Week 1–3 | Vite + React + Tailwind + shadcn/ui (per ADR-007, ADR-011). Pages in order: Login → Transaction list (paginated table) → CSV upload (drag-and-drop + preview grid) → Dashboard (category breakdown, charts) |
+| **Phase 11: Desktop App** ✅ | Week 4–5 | Electron + electron-vite wrapping web React components. Platform-specific: file dialogs, secure token storage via `safeStorage`, system tray |
+| **Phase 12: Mobile App** ✅ (JS verified; native builds on your machine) | Week 6–8 | Bare React Native with React Navigation. Platform-specific: camera for receipts, document picker for CSV, Keychain/Keystore for JWT. Future migration path to native Android/Swift |
 
 **Architecture decisions documented in:** [ADR-011](../adr/011-frontend-monorepo.md)
+
+### Next: Platform Plan
+
+| Phase | Deliverables | ADR |
+|-------|-------------|-----|
+| **Phase 13: Categories** ✅ | `categories` + `category_rules` tables (V5), user > system matching with word boundaries, category CRUD + rules API, "+ New category" in pickers, "Always use…" prompt, Settings → Categories, Vietnamese seed | ADR-015 |
+| **Phase 13b: Budgets + Overview** ✅ | `budgets` table (V6), `BUDGETS` feature, monthly overview (`/api/v1/overview`) and budgets API (`/api/v1/budgets`), server-computed OK/NEAR/OVER warnings, web dashboard-as-overview + Budgets page, mobile Overview tab | ADR-019 |
+| **Phase 14: Admin** | Fix user id (real `users.id`), roles + `APP_ADMIN_EMAIL` bootstrap, disable users, registration modes + invites, hashed device API keys (replaces accept-any-key filter), system categories, status page, audit log | ADR-016 |
+| **Phase 15: nginx + URLs** | Web image, nginx as the only published port, `finance.localhost` + `grafana.finance.localhost`, forwarded headers, single CORS config, Grafana login | ADR-017 |
+
+Done so far: 14a, most of 14 (as ADR-018), 9, 11, 12, 13, 13b (budgets + monthly overview, ADR-019). Next: rest of 14 (registration modes, hashed device keys, backups, integration tests) → 15. The security fixes in 14 come before 15 because ADR-017 makes the app reachable by URL.
+
 
 ---
 
@@ -737,13 +749,18 @@ volumes:
 |---|-------|------|
 | 001 | Modular Monolith Architecture | [adr/001-modular-monolith.md](./adr/001-modular-monolith.md) |
 | 002 | PostgreSQL with Spring Data JPA + Flyway | [adr/002-postgresql-jpa-flyway.md](./adr/002-postgresql-jpa-flyway.md) |
-| 003 | Vision API for Receipt OCR | [adr/003-vision-api-ocr.md](./adr/003-vision-api-ocr.md) |
+| 003 | ~~Vision API for Receipt OCR~~ (superseded by 014) | [adr/003-vision-api-ocr.md](./adr/003-vision-api-ocr.md) |
 | 004 | Apache Commons CSV for CSV Parsing | [adr/004-apache-commons-csv.md](./adr/004-apache-commons-csv.md) |
 | 005 | Keyword + Regex Categorization | [adr/005-keyword-categorization.md](./adr/005-keyword-categorization.md) |
 | 006 | Spring Boot 3.x Backend with Java 21 | [adr/006-spring-boot-backend.md](./adr/006-spring-boot-backend.md) |
 | 007 | Vite + React + Tailwind + shadcn/ui Frontend | [adr/007-vite-react-frontend.md](./adr/007-vite-react-frontend.md) |
 | 008 | OpenTelemetry + Grafana Observability Stack | [adr/008-observability-stack.md](./adr/008-observability-stack.md) |
 | 009 | Multi-Client API Design (v1, BFF) | [adr/009-multi-client-api.md](./adr/009-multi-client-api.md) |
+| 014 | Local Tesseract OCR + Rule-Based Receipt Parsing | [adr/014-local-tesseract-ocr.md](./adr/014-local-tesseract-ocr.md) |
+| 015 | User-Owned Categories and Categorization Rules (proposed) | [adr/015-user-categories-and-rules.md](./adr/015-user-categories-and-rules.md) |
+| 016 | Admin Area (proposed) | [adr/016-admin-area.md](./adr/016-admin-area.md) |
+| 017 | nginx Reverse Proxy and Local URLs (proposed) | [adr/017-nginx-reverse-proxy.md](./adr/017-nginx-reverse-proxy.md) |
+| 018 | Role Table, Permissions per Domain, Per-User Features | [adr/018-roles-permissions-features.md](./adr/018-roles-permissions-features.md) |
 
 ---
 

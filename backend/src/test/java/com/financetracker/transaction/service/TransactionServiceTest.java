@@ -1,7 +1,12 @@
 package com.financetracker.transaction.service;
 
+import com.financetracker.category.model.CategoryKind;
+import com.financetracker.category.model.CategoryRef;
+import com.financetracker.category.service.CategoryService;
+import com.financetracker.transaction.dto.ReceiptLineItemRequest;
 import com.financetracker.transaction.dto.TransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
+import com.financetracker.transaction.dto.TransactionUpdateRequest;
 import com.financetracker.transaction.model.ReceiptItem;
 import com.financetracker.transaction.model.SourceType;
 import com.financetracker.transaction.model.Transaction;
@@ -12,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -22,6 +28,7 @@ import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,6 +43,7 @@ class TransactionServiceTest {
     @Mock private TransactionRepository transactionRepository;
     @Mock private ReceiptItemRepository receiptItemRepository;
     @Mock private Counter transactionsCreated;
+    @Mock private CategoryService categoryService;
 
     @InjectMocks private TransactionService transactionService;
 
@@ -43,6 +51,7 @@ class TransactionServiceTest {
     private UUID transactionId;
     private Transaction testTransaction;
     private TransactionRequest testRequest;
+    private final CategoryRef coffee = new CategoryRef(UUID.randomUUID(), "Coffee Shop", CategoryKind.EXPENSE, "#8B5E3C");
 
     @BeforeEach
     void setUp() {
@@ -53,8 +62,10 @@ class TransactionServiceTest {
             "STARBUCKS #12345",
             "STARBUCKS",
             BigDecimal.valueOf(12.50),
+            null,
             "Coffee Shop",
-            "CSV"
+            "CSV",
+            null
         );
         testTransaction = Transaction.builder()
             .id(transactionId)
@@ -62,12 +73,14 @@ class TransactionServiceTest {
             .rawDescription("STARBUCKS #12345")
             .cleanMerchant("STARBUCKS")
             .amount(BigDecimal.valueOf(12.50))
-            .category("Coffee Shop")
+            .categoryId(coffee.id())
             .sourceType(SourceType.CSV)
             .clientId("finance-tracker-web")
             .isDuplicate(false)
             .createdBy(userId)
             .build();
+        lenient().when(categoryService.resolveForTransaction(any(), any(), any())).thenReturn(coffee);
+        lenient().when(categoryService.refs(any())).thenReturn(Map.of(coffee.id(), coffee));
     }
 
     @Test
@@ -81,6 +94,10 @@ class TransactionServiceTest {
         assertThat(results).hasSize(1);
         assertThat(results.get(0).cleanMerchant()).isEqualTo("STARBUCKS");
         assertThat(results.get(0).amount()).isEqualByComparingTo(BigDecimal.valueOf(12.50));
+        assertThat(results.get(0).category()).isEqualTo("Coffee Shop");
+        assertThat(results.get(0).categoryId()).isEqualTo(coffee.id());
+        assertThat(results.get(0).categoryKind()).isEqualTo("EXPENSE");
+        verify(categoryService).resolveForTransaction(userId, null, "Coffee Shop");
         verify(transactionsCreated).increment(1);
     }
 
@@ -96,9 +113,23 @@ class TransactionServiceTest {
     }
 
     @Test
+    @DisplayName("Should combine category and date filters")
+    void shouldCombineFilters() {
+        Page<Transaction> page = new PageImpl<>(List.of(testTransaction));
+        LocalDate from = LocalDate.of(2024, 1, 1);
+        LocalDate to = LocalDate.of(2024, 1, 31);
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(transactionRepository.findByFilters(userId, coffee.id(), from, to, pageable)).thenReturn(page);
+
+        Page<TransactionResponse> result = transactionService.findAll(userId, coffee.id(), from, to, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+    }
+
+    @Test
     @DisplayName("Should find transaction by ID")
     void shouldFindById() {
-        when(transactionRepository.findById(transactionId)).thenReturn(Optional.of(testTransaction));
+        when(transactionRepository.findByIdAndCreatedBy(transactionId, userId)).thenReturn(Optional.of(testTransaction));
 
         TransactionResponse response = transactionService.findById(transactionId, userId);
 
@@ -109,25 +140,43 @@ class TransactionServiceTest {
     @Test
     @DisplayName("Should throw when transaction not found")
     void shouldThrowWhenNotFound() {
-        when(transactionRepository.findById(any())).thenReturn(Optional.empty());
+        when(transactionRepository.findByIdAndCreatedBy(any(), any())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> transactionService.findById(UUID.randomUUID(), userId))
             .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
     }
 
     @Test
+    @DisplayName("Should report another user's transaction as not found and leave it untouched")
+    void shouldHideOtherUsersTransactions() {
+        UUID otherUser = UUID.randomUUID();
+        when(transactionRepository.findByIdAndCreatedBy(transactionId, otherUser)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> transactionService.findById(transactionId, otherUser))
+            .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
+        TransactionUpdateRequest correction = new TransactionUpdateRequest(
+            LocalDate.of(2024, 1, 15), null, "STARBUCKS", BigDecimal.TEN, null, "Coffee Shop");
+        assertThatThrownBy(() -> transactionService.update(transactionId, correction, otherUser))
+            .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
+        assertThatThrownBy(() -> transactionService.delete(transactionId, otherUser))
+            .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
+        verify(transactionRepository, never()).save(any());
+        verify(transactionRepository, never()).delete(any());
+    }
+
+    @Test
     @DisplayName("Should update transaction")
     void shouldUpdate() {
-        when(transactionRepository.findById(transactionId)).thenReturn(Optional.of(testTransaction));
+        when(transactionRepository.findByIdAndCreatedBy(transactionId, userId)).thenReturn(Optional.of(testTransaction));
         when(transactionRepository.save(any())).thenReturn(testTransaction);
 
-        TransactionRequest updateRequest = new TransactionRequest(
+        TransactionUpdateRequest updateRequest = new TransactionUpdateRequest(
             LocalDate.of(2024, 2, 1),
             "AMAZON PURCHASE",
             "AMAZON",
             BigDecimal.valueOf(99.99),
-            "Online Shopping",
-            "MANUAL"
+            null,
+            "Online Shopping"
         );
 
         TransactionResponse response = transactionService.update(transactionId, updateRequest, userId);
@@ -137,13 +186,74 @@ class TransactionServiceTest {
     }
 
     @Test
+    @DisplayName("Should correct a scanned receipt's amount without touching where it came from")
+    void shouldCorrectReceiptAmount() {
+        testTransaction.setSourceType(SourceType.OCR);
+        when(transactionRepository.findByIdAndCreatedBy(transactionId, userId)).thenReturn(Optional.of(testTransaction));
+        when(transactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        TransactionResponse response = transactionService.update(transactionId,
+            new TransactionUpdateRequest(LocalDate.of(2024, 1, 15), "  ", "Highlands Coffee", BigDecimal.valueOf(55_000), coffee.id(), null),
+            userId);
+
+        assertThat(response.amount()).isEqualByComparingTo("55000");
+        assertThat(response.sourceType()).isEqualTo("OCR");
+        assertThat(response.rawDescription()).isEqualTo("Highlands Coffee");
+    }
+
+    @Test
     @DisplayName("Should delete transaction")
     void shouldDelete() {
-        when(transactionRepository.findById(transactionId)).thenReturn(Optional.of(testTransaction));
+        when(transactionRepository.findByIdAndCreatedBy(transactionId, userId)).thenReturn(Optional.of(testTransaction));
 
         transactionService.delete(transactionId, userId);
 
         verify(receiptItemRepository).deleteByTransactionId(transactionId);
         verify(transactionRepository).delete(testTransaction);
+    }
+
+    @Test
+    @DisplayName("Should save receipt line items for OCR transactions")
+    @SuppressWarnings("unchecked")
+    void shouldSaveReceiptLineItemsForOcr() {
+        TransactionRequest ocrRequest = new TransactionRequest(
+            LocalDate.of(2026, 10, 17), "Bach Hoa Xanh", "Bach Hoa Xanh", BigDecimal.valueOf(90_000),
+            null, "Groceries", "OCR",
+            List.of(new ReceiptLineItemRequest("RAU MUONG ", BigDecimal.valueOf(12_000)),
+                new ReceiptLineItemRequest("GAO ST25 2KG", BigDecimal.valueOf(78_000))));
+        Transaction saved = Transaction.builder()
+            .id(transactionId)
+            .date(LocalDate.of(2026, 10, 17))
+            .rawDescription("Bach Hoa Xanh")
+            .cleanMerchant("Bach Hoa Xanh")
+            .amount(BigDecimal.valueOf(90_000))
+            .categoryId(coffee.id())
+            .sourceType(SourceType.OCR)
+            .clientId("finance-tracker-web")
+            .isDuplicate(false)
+            .createdBy(userId)
+            .build();
+        when(transactionRepository.saveAll(any())).thenReturn(List.of(saved));
+
+        transactionService.batchCreate(List.of(ocrRequest), userId, "finance-tracker-web");
+
+        ArgumentCaptor<List<ReceiptItem>> captor = ArgumentCaptor.forClass(List.class);
+        verify(receiptItemRepository).saveAll(captor.capture());
+        assertThat(captor.getValue()).hasSize(2);
+        assertThat(captor.getValue()).allSatisfy(item -> assertThat(item.getTransactionId()).isEqualTo(transactionId));
+        assertThat(captor.getValue()).extracting(ReceiptItem::getItemDescription).containsExactly("RAU MUONG", "GAO ST25 2KG");
+    }
+
+    @Test
+    @DisplayName("Should ignore line items on non-OCR transactions")
+    void shouldIgnoreLineItemsForCsv() {
+        TransactionRequest csvRequest = new TransactionRequest(
+            LocalDate.of(2024, 1, 15), "STARBUCKS #12345", "STARBUCKS", BigDecimal.valueOf(12.50), null, "Coffee Shop", "CSV",
+            List.of(new ReceiptLineItemRequest("Latte", BigDecimal.valueOf(12.50))));
+        when(transactionRepository.saveAll(any())).thenReturn(List.of(testTransaction));
+
+        transactionService.batchCreate(List.of(csvRequest), userId, "finance-tracker-web");
+
+        verify(receiptItemRepository, never()).saveAll(any());
     }
 }

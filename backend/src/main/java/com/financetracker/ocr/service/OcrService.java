@@ -1,126 +1,214 @@
 package com.financetracker.ocr.service;
 
 import com.financetracker.category.service.CategorizationService;
+import com.financetracker.ocr.config.OcrProperties;
 import com.financetracker.ocr.dto.ParsedReceiptResponse;
-import com.financetracker.transaction.service.DeduplicationService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import com.financetracker.ocr.exception.OcrErrorCode;
+import com.financetracker.ocr.exception.OcrException;
+import com.financetracker.ocr.extract.ExtractedReceipt;
+import com.financetracker.ocr.extract.ReceiptOcrEngine;
+import com.financetracker.ocr.extract.ReceiptTextParser;
+import com.financetracker.transaction.intake.DraftTransaction;
+import com.financetracker.transaction.intake.RawEntry;
+import com.financetracker.transaction.intake.TransactionIntake;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.ImageType;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
-import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.math.BigDecimal;
+import java.io.IOException;
+import java.time.Clock;
 import java.time.LocalDate;
-import java.util.Base64;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
+/**
+ * Reads receipts (ADR-014): decode the upload (image or first PDF page) → local OCR → rule-based
+ * parsing → {@link TransactionIntake} (categorization and duplicate check). The uploaded bytes are never stored.
+ */
 @Service
-@RequiredArgsConstructor
 public class OcrService {
 
+    /** Fewer letters/digits than this means OCR could not read the photo. */
+    private static final int MIN_TEXT_CHARACTERS = 20;
+    private static final ZoneId RECEIPT_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
+    private static final String METRIC_RECEIPTS = "finance.ocr.receipts";
+    private static final String METRIC_DURATION = "finance.ocr.duration";
+    private static final String METRIC_FIELDS = "finance.ocr.fields.found";
+    private static final String METRIC_WARNINGS = "finance.ocr.warnings";
+
     private final CategorizationService categorizationService;
-    private final DeduplicationService deduplicationService;
+    private final TransactionIntake intake;
+    private final ReceiptOcrEngine ocrEngine;
+    private final MeterRegistry meterRegistry;
+    private final OcrProperties properties;
+    private final ReceiptTextParser parser = new ReceiptTextParser();
+    private Clock clock = Clock.system(RECEIPT_ZONE);
 
-    @Value("${app.ocr.image-max-width:1024}")
-    private int imageMaxWidth;
+    public OcrService(CategorizationService categorizationService,
+                      TransactionIntake intake,
+                      ReceiptOcrEngine ocrEngine,
+                      MeterRegistry meterRegistry,
+                      OcrProperties properties) {
+        this.categorizationService = categorizationService;
+        this.intake = intake;
+        this.ocrEngine = ocrEngine;
+        this.meterRegistry = meterRegistry;
+        this.properties = properties;
+    }
 
-    /**
-     * Process a receipt image through the Vision API.
-     * The raw image bytes are discarded after processing.
-     * A normalized version is generated for potential storage.
-     */
-    public ParsedReceiptResponse processReceipt(MultipartFile image, UUID userId) {
-        try {
-            // 1. Validate image
-            byte[] imageBytes = image.getBytes();
-            if (imageBytes.length == 0) {
-                throw new IllegalArgumentException("Receipt image is empty");
-            }
-
-            // 2. Normalize image (resize, convert to standard format)
-            byte[] normalizedImage = normalizeImage(imageBytes);
-
-            // 3. Call Vision API (placeholder — requires OpenAI API key)
-            // TODO: Implement OpenAI Vision API call with normalizedImage
-            ParsedReceiptResponse response = callVisionApi(normalizedImage);
-
-            // 4. Check duplicates
-            boolean isDuplicate = deduplicationService.isDuplicate(userId, response.date(), response.totalAmount());
-            String category = categorizationService.categorize(response.merchant());
-
-            // 5. Raw image bytes are discarded (not stored)
-            // Normalized image could be stored if configured
-            // TODO: Add configurable normalized image storage
-
-            return new ParsedReceiptResponse(
-                response.merchant(), response.date(), response.totalAmount(),
-                category, isDuplicate, response.lineItems());
-
-        } catch (Exception e) {
-            throw new RuntimeException("OCR processing failed: " + e.getMessage(), e);
-        }
+    /** For tests: fixes "today", which the parser uses to reject implausible receipt dates. */
+    void setClock(Clock clock) {
+        this.clock = clock;
     }
 
     /**
-     * Normalize image to a standard format: JPEG, max width 1024px.
-     * This ensures consistent processing regardless of input format.
+     * Process a receipt image or PDF and extract transaction data.
+     *
+     * @throws IllegalArgumentException when the upload is empty
+     * @throws OcrException             when the file can't be decoded or the receipt can't be read
      */
-    private byte[] normalizeImage(byte[] imageBytes) {
+    public ParsedReceiptResponse processReceipt(MultipartFile file, UUID userId) {
+        Timer.Sample sample = Timer.start(meterRegistry);
+        String outcome = "error";
         try {
-            BufferedImage original = ImageIO.read(new ByteArrayInputStream(imageBytes));
-            if (original == null) {
-                throw new IllegalArgumentException("Unable to decode image");
-            }
-
-            int width = original.getWidth();
-            int height = original.getHeight();
-
-            if (width <= 0 || height <= 0) {
-                throw new IllegalArgumentException("Image has invalid dimensions: " + width + "x" + height);
-            }
-
-            // Resize if wider than max
-            if (width > imageMaxWidth) {
-                double ratio = (double) imageMaxWidth / width;
-                int newHeight = Math.max(1, (int) (height * ratio));
-                BufferedImage resized = new BufferedImage(imageMaxWidth, newHeight, BufferedImage.TYPE_INT_RGB);
-                Graphics2D g = resized.createGraphics();
-                g.drawImage(original, 0, 0, imageMaxWidth, newHeight, null);
-                g.dispose();
-                original = resized;
-            }
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(original, "jpg", baos);
-            return baos.toByteArray();
-
-        } catch (Exception e) {
-            throw new RuntimeException("Image normalization failed", e);
+            BufferedImage image = decode(file);
+            ExtractedReceipt receipt = read(image);
+            ParsedReceiptResponse response = toResponse(receipt, userId);
+            recordFields(receipt);
+            outcome = "ok";
+            return response;
+        } catch (OcrException e) {
+            outcome = e.getCode().name().toLowerCase(Locale.ROOT);
+            throw e;
+        } finally {
+            meterRegistry.counter(METRIC_RECEIPTS, "outcome", outcome).increment();
+            sample.stop(meterRegistry.timer(METRIC_DURATION, "outcome", outcome));
         }
     }
 
-    /**
-     * Placeholder for OpenAI Vision API call.
-     * TODO: Implement with actual OpenAI client when API key is configured.
-     */
-    private ParsedReceiptResponse callVisionApi(byte[] normalizedImage) {
-        // Encode image to base64 for API call
-        String base64Image = Base64.getEncoder().encodeToString(normalizedImage);
+    // ───────────────────────── decoding ─────────────────────────
 
-        // TODO: Make HTTP call to OpenAI Vision API with gpt-4o-mini
-        // For now, return a placeholder
-        return new ParsedReceiptResponse(
-            "UNKNOWN MERCHANT",
-            LocalDate.now(),
-            BigDecimal.ZERO,
-            "Other",
-            false,
-            List.of()
-        );
+    private BufferedImage decode(MultipartFile file) {
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException e) {
+            throw new OcrException(OcrErrorCode.UNSUPPORTED_FILE, "Could not read the uploaded file", e);
+        }
+        if (bytes.length == 0) {
+            throw new IllegalArgumentException("Receipt file is empty");
+        }
+        BufferedImage image = isPdf(file.getContentType(), file.getOriginalFilename())
+            ? renderFirstPdfPage(bytes)
+            : readImage(bytes);
+        if (image == null) {
+            throw new OcrException(OcrErrorCode.UNSUPPORTED_FILE, "Use a JPG, PNG or PDF receipt");
+        }
+        return image;
+    }
+
+    private static boolean isPdf(String contentType, String filename) {
+        boolean pdfType = contentType != null && contentType.equalsIgnoreCase("application/pdf");
+        boolean pdfName = filename != null && filename.toLowerCase(Locale.ROOT).endsWith(".pdf");
+        return pdfType || pdfName;
+    }
+
+    private static BufferedImage readImage(byte[] bytes) {
+        try {
+            return ImageIO.read(new ByteArrayInputStream(bytes));
+        } catch (IOException e) {
+            throw new OcrException(OcrErrorCode.UNSUPPORTED_FILE, "The image could not be decoded", e);
+        }
+    }
+
+    private BufferedImage renderFirstPdfPage(byte[] bytes) {
+        try (PDDocument document = Loader.loadPDF(bytes)) {
+            if (document.getNumberOfPages() == 0) {
+                throw new OcrException(OcrErrorCode.UNSUPPORTED_FILE, "The PDF has no pages");
+            }
+            return new PDFRenderer(document).renderImageWithDPI(0, properties.getPdfDpi(), ImageType.GRAY);
+        } catch (IOException e) {
+            throw new OcrException(OcrErrorCode.UNSUPPORTED_FILE, "The PDF could not be read", e);
+        }
+    }
+
+    // ───────────────────────── OCR + parsing ─────────────────────────
+
+    private ExtractedReceipt read(BufferedImage image) {
+        List<String> knownMerchants = categorizationService.knownMerchantKeywords();
+        String text = nullToEmpty(ocrEngine.recognize(image, ReceiptOcrEngine.Layout.PRIMARY));
+        ExtractedReceipt receipt = parse(text, knownMerchants);
+
+        if (receipt.total() == null) {
+            String retryText = ocrEngine.recognize(image, ReceiptOcrEngine.Layout.FALLBACK);
+            ExtractedReceipt retry = retryText == null ? null : parse(retryText, knownMerchants);
+            if (retry != null && fieldsFound(retry) > fieldsFound(receipt)) {
+                receipt = retry;
+                text = retryText;
+            }
+        }
+
+        if (countTextCharacters(text) < MIN_TEXT_CHARACTERS) {
+            throw new OcrException(OcrErrorCode.UNREADABLE, "Could not read this receipt. Try a clearer photo.");
+        }
+        if (!receipt.amountsFound()) {
+            throw new OcrException(OcrErrorCode.NOT_A_RECEIPT, "No amounts were found, so this doesn't look like a receipt.");
+        }
+        return receipt;
+    }
+
+    private ExtractedReceipt parse(String text, List<String> knownMerchants) {
+        return parser.parse(List.of(text.split("\\R")), knownMerchants, LocalDate.now(clock));
+    }
+
+    private static int fieldsFound(ExtractedReceipt receipt) {
+        int found = 0;
+        found += receipt.merchant() != null ? 1 : 0;
+        found += receipt.date() != null ? 1 : 0;
+        found += receipt.total() != null ? 1 : 0;
+        found += receipt.lineItems().isEmpty() ? 0 : 1;
+        return found;
+    }
+
+    private static int countTextCharacters(String text) {
+        return (int) text.chars().filter(Character::isLetterOrDigit).count();
+    }
+
+    private static String nullToEmpty(String text) {
+        return text == null ? "" : text;
+    }
+
+    // ───────────────────────── response ─────────────────────────
+
+    private ParsedReceiptResponse toResponse(ExtractedReceipt receipt, UUID userId) {
+        DraftTransaction draft = intake.draft(userId, new RawEntry(receipt.date(), receipt.merchant(), receipt.total()));
+        List<ParsedReceiptResponse.LineItem> lineItems = receipt.lineItems().stream()
+            .map(item -> new ParsedReceiptResponse.LineItem(item.item(), item.price()))
+            .toList();
+        return new ParsedReceiptResponse(receipt.merchant(), receipt.date(), receipt.total(),
+            draft.category().id(), draft.category().name(), draft.duplicate(), lineItems, receipt.warnings());
+    }
+
+    private void recordFields(ExtractedReceipt receipt) {
+        countField("merchant", receipt.merchant() != null);
+        countField("date", receipt.date() != null);
+        countField("total", receipt.total() != null);
+        countField("line_items", !receipt.lineItems().isEmpty());
+        receipt.warnings().forEach(code -> meterRegistry.counter(METRIC_WARNINGS, "code", code).increment());
+    }
+
+    private void countField(String field, boolean found) {
+        meterRegistry.counter(METRIC_FIELDS, "field", field, "found", String.valueOf(found)).increment();
     }
 }

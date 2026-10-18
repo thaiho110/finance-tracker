@@ -1,0 +1,7 @@
+// pnpm workspace with nodeLinker: hoisted: packages live in the repository root node_modules.
+pluginManagement { includeBuild("../../../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+rootProject.name = 'FinanceTracker'
+include ':app'
+includeBuild('../../../node_modules/@react-native/gradle-plugin')

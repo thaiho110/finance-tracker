@@ -1,0 +1,305 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ── Design Tokens (from plan/design/tokens.css) ── */
+@theme {
+  --font-sans: 'Geist Variable', sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+
+  /* Backgrounds */
+  --color-bg-canvas: #F6F5F1;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-muted: #EFEEE8;
+  --color-bg-sidebar: #FBFAF7;
+
+  /* Borders */
+  --color-border-default: #E3E1D9;
+  --color-border-strong: #CFCCC1;
+
+  /* Text */
+  --color-text-default: #17191A;
+  --color-text-muted: #6A6E68;
+  --color-text-on-primary: #FFFFFF;
+
+  /* Brand */
+  --color-brand-primary: #1E6B47;
+  --color-brand-primary-soft: #E2F0E8;
+
+  /* Status */
+  --color-status-warning: #A86A12;
+  --color-status-warning-soft: #FBF0D9;
+  --color-status-danger: #B93A2C;
+  --color-status-danger-soft: #FAE5E2;
+
+  /* Charts — keep category mapping consistent everywhere */
+  --color-chart-1: #1E6B47;  /* Food & Dining — green */
+  --color-chart-2: #2A9D8F;  /* Transport — teal */
+  --color-chart-3: #E0A13A;  /* Shopping — amber */
+  --color-chart-4: #E3704F;  /* Bills & Utilities — coral */
+  --color-chart-5: #5D6C7B;  /* Other / Uncategorized — slate */
+  --color-chart-6: #8C6BB1;  /* Entertainment — purple */
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadcn mapping — map design tokens to shadcn variables */
+  --color-background: var(--color-bg-canvas);
+  --color-foreground: var(--color-text-default);
+  --color-card: var(--color-bg-surface);
+  --color-card-foreground: var(--color-text-default);
+  --color-popover: var(--color-bg-surface);
+  --color-popover-foreground: var(--color-text-default);
+  --color-primary: var(--color-brand-primary);
+  --color-primary-foreground: var(--color-text-on-primary);
+  --color-secondary: var(--color-bg-muted);
+  --color-secondary-foreground: var(--color-text-default);
+  --color-muted: var(--color-bg-muted);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-accent: var(--color-brand-primary-soft);
+  --color-accent-foreground: var(--color-brand-primary);
+  --color-destructive: var(--color-status-danger);
+  --color-destructive-foreground: var(--color-text-on-primary);
+  --color-border: var(--color-border-default);
+  --color-input: var(--color-border-default);
+  --color-ring: var(--color-brand-primary);
+
+
+  /* Sidebar */
+  --color-sidebar: var(--color-bg-sidebar);
+  --color-sidebar-foreground: var(--color-text-default);
+  --color-sidebar-primary: var(--color-brand-primary);
+  --color-sidebar-primary-foreground: var(--color-text-on-primary);
+  --color-sidebar-accent: var(--color-brand-primary-soft);
+  --color-sidebar-accent-foreground: var(--color-brand-primary);
+  --color-sidebar-border: var(--color-border-default);
+  --color-sidebar-ring: var(--color-brand-primary);
+
+  --radius: 0.5rem;
+}
+
+/* ── Dark mode token set ── */
+.dark {
+  --color-bg-canvas: #0F1113;
+  --color-bg-surface: #1A1C1E;
+  --color-bg-muted: #242628;
+  --color-bg-sidebar: #141517;
+
+  --color-border-default: #343638;
+  --color-border-strong: #4A4C4E;
+
+  --color-text-default: #E8E8E6;
+  --color-text-muted: #929590;
+  --color-text-on-primary: #FFFFFF;
+
+  --color-brand-primary: #3D8B63;
+  --color-brand-primary-soft: #1A2E23;
+
+  --color-status-warning: #D4A036;
+  --color-status-warning-soft: #2E2618;
+
+  --color-status-danger: #D9534F;
+  --color-status-danger-soft: #2E1C1A;
+
+  /* Chart colors — slightly desaturated for dark */
+  --color-chart-1: #3D8B63;
+  --color-chart-2: #3DB3A3;
+  --color-chart-3: #E6B84E;
+  --color-chart-4: #E8836A;
+  --color-chart-5: #7A8794;
+  --color-chart-6: #A083C4;
+
+  /* Remap shadcn variables for dark */
+  --color-background: var(--color-bg-canvas);
+  --color-foreground: var(--color-text-default);
+  --color-card: var(--color-bg-surface);
+  --color-card-foreground: var(--color-text-default);
+  --color-popover: var(--color-bg-surface);
+  --color-popover-foreground: var(--color-text-default);
+  --color-primary: var(--color-brand-primary);
+  --color-primary-foreground: var(--color-text-on-primary);
+  --color-secondary: var(--color-bg-muted);
+  --color-secondary-foreground: var(--color-text-default);
+  --color-muted: var(--color-bg-muted);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-accent: var(--color-brand-primary-soft);
+  --color-accent-foreground: var(--color-brand-primary);
+  --color-destructive: var(--color-status-danger);
+  --color-destructive-foreground: var(--color-text-on-primary);
+  --color-border: var(--color-border-default);
+  --color-input: var(--color-border-default);
+  --color-ring: var(--color-brand-primary);
+
+  --color-sidebar: var(--color-bg-sidebar);
+  --color-sidebar-foreground: var(--color-text-default);
+  --color-sidebar-primary: var(--color-brand-primary);
+  --color-sidebar-primary-foreground: var(--color-text-on-primary);
+  --color-sidebar-accent: var(--color-brand-primary-soft);
+  --color-sidebar-accent-foreground: var(--color-brand-primary);
+  --color-sidebar-border: var(--color-border-default);
+  --color-sidebar-ring: var(--color-brand-primary);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* ── Typography utilities ── */
+@utility tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility text-mono {
+  font-family: 'Geist Mono Variable', ui-monospace, monospace;
+}
+
+/* ── Spacing utility ── */
+@utility page-padding {
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+/* ── Reusable component patterns (design system) ── */
+
+/* Surface card: white bg, 12px radius, border ring */
+@utility surface-card {
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+}
+
+/* Input field base: 36px tall, 8px radius, border */
+@utility input-base {
+  height: 2.25rem; /* 36px */
+  width: 100%;
+  min-width: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-default);
+  background-color: var(--color-bg-surface);
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  transition: color 0.15s;
+  outline: none;
+}
+
+/* Focus ring: brand primary */
+@utility focus-ring {
+  --tw-ring-color: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+  --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  border-color: var(--color-brand-primary);
+  box-shadow: var(--tw-ring-shadow);
+}
+
+/* Error ring */
+@utility error-ring {
+  --tw-ring-color: color-mix(in srgb, var(--color-status-danger) 20%, transparent);
+  --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  border-color: var(--color-status-danger);
+  box-shadow: var(--tw-ring-shadow);
+}
+
+/* Table header cell */
+@utility th-base {
+  height: 3rem; /* 48px */
+  padding-left: 1rem;
+  padding-right: 1rem;
+  text-align: left;
+  vertical-align: middle;
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Table body cell */
+@utility td-base {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Section heading (page title) */
+@utility page-title {
+  font-size: 1.25rem; /* 20px */
+  line-height: 1.75rem; /* 28px */
+  font-weight: 600;
+  color: var(--color-text-default);
+}
+
+/* Label (caption) for form fields */
+@utility field-label {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+/* Sidebar nav item base */
+@utility nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--radius-md);
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+/* ── Category badge tones — background at 14% opacity ── */
+.category-green {
+  background-color: color-mix(in srgb, var(--color-chart-1) 14%, transparent);
+  color: var(--color-chart-1);
+}
+.category-teal {
+  background-color: color-mix(in srgb, var(--color-chart-2) 14%, transparent);
+  color: var(--color-chart-2);
+}
+.category-amber {
+  background-color: color-mix(in srgb, var(--color-chart-3) 14%, transparent);
+  color: var(--color-chart-3);
+}
+.category-coral {
+  background-color: color-mix(in srgb, var(--color-chart-4) 14%, transparent);
+  color: var(--color-chart-4);
+}
+.category-slate {
+  background-color: color-mix(in srgb, var(--color-chart-5) 14%, transparent);
+  color: var(--color-chart-5);
+}
+.category-purple {
+  background-color: color-mix(in srgb, var(--color-chart-6) 14%, transparent);
+  color: var(--color-chart-6);
+}

@@ -2,7 +2,7 @@ name: PR Build
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   build:
@@ -24,12 +24,37 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x backend/gradlew
 
+      - name: Verify Docker is available (required for Testcontainers)
+        run: docker version
+
+      - name: Pre-pull PostgreSQL image (speeds up Testcontainers)
+        run: docker pull postgres:16-alpine
+
       - name: Build and run tests
         run: cd backend && ./gradlew check --no-daemon
 
       - name: Run quality checks
         run: cd backend && ./gradlew checkstyleMain pmdMain spotbugsMain --no-daemon
         continue-on-error: true
+
+      - name: Display coverage percentage
+        run: |
+          XML=backend/build/reports/jacoco/test/jacocoTestReport.xml
+          if [ -f "$XML" ]; then
+            echo "## JaCoCo Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            echo '| Type | Missed | Covered | Total | Coverage |' >> $GITHUB_STEP_SUMMARY
+            echo '|------|--------|---------|-------|----------|' >> $GITHUB_STEP_SUMMARY
+            for type in INSTRUCTION LINE BRANCH METHOD CLASS; do
+              data=$(grep -oP "<counter type=\"$type\" missed=\"\d+\" covered=\"\d+\"/>" "$XML" | tail -1)
+              missed=$(echo "$data" | grep -oP 'missed="\K\d+')
+              covered=$(echo "$data" | grep -oP 'covered="\K\d+')
+              total=$((missed + covered))
+              pct=$(awk "BEGIN {printf \"%.0f\", ($covered / $total) * 100}")
+              echo "| $type | $missed | $covered | $total | ${pct}% |" >> $GITHUB_STEP_SUMMARY
+            done
+          else
+            echo "⚠️ JaCoCo XML report not found at $XML"
+          fi
 
       - name: Upload JaCoCo coverage report
         uses: actions/upload-artifact@v5
@@ -47,3 +72,34 @@ jobs:
             backend/build/reports/pmd/
             backend/build/reports/spotbugs/
           retention-days: 14
+
+  frontend:
+    name: Frontend (shared, web, desktop, mobile JS)
+    runs-on: ubuntu-24.04
+    env:
+      # The Electron binary isn't needed to build or type-check the desktop app.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4   # version from package.json "packageManager"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (shared → web, desktop)
+        run: pnpm build
+
+      - name: Test shared API client
+        run: pnpm --filter @finance-tracker/shared test
+
+      - name: Type-check and test mobile
+        run: |
+          pnpm --filter @finance-tracker/mobile type-check
+          pnpm --filter @finance-tracker/mobile test

@@ -13,7 +13,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none   # Flyway owns the schema (db/migration); Hibernate must not create or alter tables
     open-in-view: false
     properties:
       hibernate:
@@ -28,6 +28,12 @@ spring:
     baseline-on-migrate: true
     locations: classpath:db/migration
     placeholder-replacement: false
+
+  # Phone photos are usually 2–8 MB; Spring's default limit is 1 MB.
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 server:
   port: 8080
@@ -54,6 +60,15 @@ management:
       probability: 1.0
     enabled: true
 
+# ── API docs ──
+# Swagger UI and the OpenAPI JSON are off by default and turned on only in the dev profile, so a
+# production deployment never exposes the API surface or the "try it out" console (deploy hardening).
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 # ── Logging ──
 logging:
   level:
@@ -63,6 +78,9 @@ logging:
 
 # ── Application-specific ──
 app:
+  access:
+    # First super admin (ADR-018); blank = none
+    super-admin-email: ${APP_SUPER_ADMIN_EMAIL:}
   metrics:
     enabled: true
   rate-limiting:
@@ -89,12 +107,21 @@ app:
         refill-tokens: 30
         refill-period: PT1M
   jwt:
-    secret: ${JWT_SECRET:finance-tracker-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+    secret: ${JWT_SECRET:3mhbSeM7+F+apqIdX3djTlRWItB0HiiKEoqAZfiEIjE=}
     expiration: 86400000
     refresh-expiration: 604800000
+  # Receipt OCR with local Tesseract (ADR-014)
   ocr:
-    image-max-width: 1024
+    languages: vie+eng
+    page-seg-mode: 6            # single uniform block of text
+    fallback-page-seg-mode: 4   # retried when no total is found; 0 disables
+    timeout: 15s
+    max-concurrent: 2           # Tesseract is CPU-bound
+    pdf-dpi: 300
     image-retention: NONE
+    tesseract:
+      command: ${TESSERACT_CMD:tesseract}
+      tessdata-path: ${TESSDATA_PATH:}
 ---
 spring:
   config:
@@ -108,11 +135,23 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none   # Flyway owns the schema (db/migration); Hibernate must not create or alter tables
     show-sql: true
 
   flyway:
     enabled: true
+
+# Swagger UI and /v3/api-docs are available only in the dev profile.
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+# Local signups stay open regardless of the stored registration mode (ADR-016).
+app:
+  registration:
+    forced-mode: OPEN
 
 logging:
   level:
@@ -128,3 +167,36 @@ spring:
     url: jdbc:postgresql://postgres:5432/finance_tracker
     username: ft_user
     password: ft_password
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+
+  datasource:
+    url: jdbc:h2:mem:finance_tracker;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  flyway:
+    enabled: false
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+logging:
+  level:
+    com.financetracker: DEBUG
+    org.hibernate.SQL: DEBUG

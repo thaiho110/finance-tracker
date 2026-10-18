@@ -1,5 +1,6 @@
 package com.financetracker.common.config;
 
+import com.financetracker.auth.security.CurrentUser;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
@@ -8,6 +9,7 @@ import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,18 +18,23 @@ import java.util.List;
 @Configuration
 public class OpenApiConfig {
 
+    static {
+        // The signed-in user is injected by Spring Security, not sent by the client.
+        SpringDocUtils.getConfig().addAnnotationsToIgnore(CurrentUser.class);
+    }
+
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
             .info(new Info()
-                .title("Finance Tracker API")
+                .title("Kept API")
                 .version("1.0.0")
                 .description("""
-                    REST API for the CSV + Receipt OCR Finance Tracker.
+                    REST API for Kept, the CSV + receipt OCR finance tracker.
                     Supports CSV bank statement parsing, receipt OCR extraction,
                     transaction management, and DB-backed categorization.
                     """)
-                .contact(new Contact().email("dev@financetracker.com").name("Finance Tracker Team"))
+                .contact(new Contact().email("dev@financetracker.com").name("Kept"))
                 .license(new License().name("MIT").url("https://opensource.org/licenses/MIT")))
             .servers(List.of(
                 new Server().url("http://localhost:8080").description("Local Development"),
@@ -35,10 +42,8 @@ public class OpenApiConfig {
             .components(new Components()
                 .addSecuritySchemes("bearer-jwt", new SecurityScheme()
                     .type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")
-                    .description("JWT token from POST /api/v1/auth/login"))
-                .addSecuritySchemes("api-key", new SecurityScheme()
-                    .type(SecurityScheme.Type.APIKEY).in(SecurityScheme.In.HEADER).name("X-Api-Key")
-                    .description("API key for dedicated device authentication")))
-            .addSecurityItem(new SecurityRequirement().addList("bearer-jwt").addList("api-key"));
+                    .description("JWT token from POST /api/v1/auth/login")))
+            // Device API keys come back with hashed, revocable keys (ADR-016); until then JWT is the only scheme.
+            .addSecurityItem(new SecurityRequirement().addList("bearer-jwt"));
     }
 }

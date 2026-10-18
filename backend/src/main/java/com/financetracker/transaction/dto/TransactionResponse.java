@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,12 +15,19 @@ public record TransactionResponse(
     @Schema(description = "Raw description from source", example = "STARBUCKS #12345") String rawDescription,
     @Schema(description = "Cleaned merchant name", example = "STARBUCKS") String cleanMerchant,
     @Schema(description = "Transaction amount", example = "12.50") BigDecimal amount,
-    @Schema(description = "Category", example = "Coffee Shop") String category,
+    @Schema(description = "Category name", example = "Coffee Shop") String category,
+    @Schema(description = "Category id") UUID categoryId,
+    @Schema(description = "EXPENSE, INCOME or TRANSFER") String categoryKind,
+    @Schema(description = "Category color", nullable = true) String categoryColor,
     @Schema(description = "Source type", example = "CSV") String sourceType,
     @Schema(description = "Client identifier", example = "finance-tracker-web") String clientId,
     @Schema(description = "Whether this was flagged as duplicate", example = "false") boolean isDuplicate,
     @Schema(description = "Record creation timestamp") LocalDateTime createdAt,
     @Schema(description = "Receipt line items (only for OCR-sourced transactions)") List<ReceiptItemResponse> receiptItems
 ) {
-    public record ReceiptItemResponse(UUID id, String itemDescription, BigDecimal price) {}
+    public TransactionResponse {
+        receiptItems = Collections.unmodifiableList(receiptItems);
+    }
+
+    public record ReceiptItemResponse(UUID id, String itemDescription, BigDecimal price) { }
 }
