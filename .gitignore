@@ -56,3 +56,6 @@ packages/desktop/release/
 # Database backups (keep the dir, ignore dumps)
 backups/*.sql.gz
 backups/*.sql.gz.tmp
+
+# TypeScript incremental build info (must never be committed: a stale one makes tsc skip emitting)
+*.tsbuildinfo
