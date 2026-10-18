@@ -710,10 +710,10 @@ volumes:
 
 | Phase | Duration | Deliverables |
 |-------|----------|-------------|
-| **Phase 9: Shared Package** | Day 1–2 | `packages/shared/` — TypeScript types mirroring backend DTOs, `ApiClient` class with JWT + `X-Client-Id` headers, `TokenStorage` interface, shared validation rules |
-| **Phase 10: Web App** | Week 1–3 | Vite + React + Tailwind + shadcn/ui (per ADR-007, ADR-011). Pages in order: Login → Transaction list (paginated table) → CSV upload (drag-and-drop + preview grid) → Dashboard (category breakdown, charts) |
-| **Phase 11: Desktop App** | Week 4–5 | Electron + electron-vite wrapping web React components. Platform-specific: file dialogs, secure token storage via `safeStorage`, system tray |
-| **Phase 12: Mobile App** | Week 6–8 | Bare React Native with React Navigation. Platform-specific: camera for receipts, document picker for CSV, Keychain/Keystore for JWT. Future migration path to native Android/Swift |
+| **Phase 9: Shared Package** ✅ | Day 1–2 | `packages/shared/` — TypeScript types mirroring backend DTOs, `ApiClient` class with JWT + `X-Client-Id` headers, `TokenStorage` interface, shared validation rules |
+| **Phase 10: Web App** ✅ | Week 1–3 | Vite + React + Tailwind + shadcn/ui (per ADR-007, ADR-011). Pages in order: Login → Transaction list (paginated table) → CSV upload (drag-and-drop + preview grid) → Dashboard (category breakdown, charts) |
+| **Phase 11: Desktop App** ✅ | Week 4–5 | Electron + electron-vite wrapping web React components. Platform-specific: file dialogs, secure token storage via `safeStorage`, system tray |
+| **Phase 12: Mobile App** ✅ (JS verified; native builds on your machine) | Week 6–8 | Bare React Native with React Navigation. Platform-specific: camera for receipts, document picker for CSV, Keychain/Keystore for JWT. Future migration path to native Android/Swift |
 
 **Architecture decisions documented in:** [ADR-011](../adr/011-frontend-monorepo.md)
 
@@ -725,7 +725,7 @@ volumes:
 | **Phase 14: Admin** | Fix user id (real `users.id`), roles + `APP_ADMIN_EMAIL` bootstrap, disable users, registration modes + invites, hashed device API keys (replaces accept-any-key filter), system categories, status page, audit log | ADR-016 |
 | **Phase 15: nginx + URLs** | Web image, nginx as the only published port, `finance.localhost` + `grafana.finance.localhost`, forwarded headers, single CORS config, Grafana login | ADR-017 |
 
-Order: 14a (user id fix + disable the API key filter) → 15 → 13 → rest of 14. The two security fixes come first because ADR-017 makes the app reachable by URL.
+Done so far: 14a, most of 14 (as ADR-018), 9, 11, 12. Next: 15 → 13 → rest of 14. The two security fixes come first because ADR-017 makes the app reachable by URL.
 
 
 ---
