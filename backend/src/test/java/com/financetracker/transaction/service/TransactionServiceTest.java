@@ -98,9 +98,23 @@ class TransactionServiceTest {
     }
 
     @Test
+    @DisplayName("Should combine category and date filters")
+    void shouldCombineFilters() {
+        Page<Transaction> page = new PageImpl<>(List.of(testTransaction));
+        LocalDate from = LocalDate.of(2024, 1, 1);
+        LocalDate to = LocalDate.of(2024, 1, 31);
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(transactionRepository.findByFilters(userId, "Coffee Shop", from, to, pageable)).thenReturn(page);
+
+        Page<TransactionResponse> result = transactionService.findAll(userId, "Coffee Shop", from, to, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+    }
+
+    @Test
     @DisplayName("Should find transaction by ID")
     void shouldFindById() {
-        when(transactionRepository.findById(transactionId)).thenReturn(Optional.of(testTransaction));
+        when(transactionRepository.findByIdAndCreatedBy(transactionId, userId)).thenReturn(Optional.of(testTransaction));
 
         TransactionResponse response = transactionService.findById(transactionId, userId);
 
@@ -111,16 +125,32 @@ class TransactionServiceTest {
     @Test
     @DisplayName("Should throw when transaction not found")
     void shouldThrowWhenNotFound() {
-        when(transactionRepository.findById(any())).thenReturn(Optional.empty());
+        when(transactionRepository.findByIdAndCreatedBy(any(), any())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> transactionService.findById(UUID.randomUUID(), userId))
             .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
     }
 
     @Test
+    @DisplayName("Should report another user's transaction as not found and leave it untouched")
+    void shouldHideOtherUsersTransactions() {
+        UUID otherUser = UUID.randomUUID();
+        when(transactionRepository.findByIdAndCreatedBy(transactionId, otherUser)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> transactionService.findById(transactionId, otherUser))
+            .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
+        assertThatThrownBy(() -> transactionService.update(transactionId, testRequest, otherUser))
+            .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
+        assertThatThrownBy(() -> transactionService.delete(transactionId, otherUser))
+            .isInstanceOf(com.financetracker.common.exception.EntityNotFoundException.class);
+        verify(transactionRepository, never()).save(any());
+        verify(transactionRepository, never()).delete(any());
+    }
+
+    @Test
     @DisplayName("Should update transaction")
     void shouldUpdate() {
-        when(transactionRepository.findById(transactionId)).thenReturn(Optional.of(testTransaction));
+        when(transactionRepository.findByIdAndCreatedBy(transactionId, userId)).thenReturn(Optional.of(testTransaction));
         when(transactionRepository.save(any())).thenReturn(testTransaction);
 
         TransactionRequest updateRequest = new TransactionRequest(
@@ -141,7 +171,7 @@ class TransactionServiceTest {
     @Test
     @DisplayName("Should delete transaction")
     void shouldDelete() {
-        when(transactionRepository.findById(transactionId)).thenReturn(Optional.of(testTransaction));
+        when(transactionRepository.findByIdAndCreatedBy(transactionId, userId)).thenReturn(Optional.of(testTransaction));
 
         transactionService.delete(transactionId, userId);
 

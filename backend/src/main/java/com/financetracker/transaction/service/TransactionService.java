@@ -74,39 +74,18 @@ public class TransactionService {
         }
     }
 
-    public Page<TransactionResponse> findAll(UUID userId, String category, String dateFrom, String dateTo, Pageable pageable) {
-        LocalDate from = dateFrom != null ? LocalDate.parse(dateFrom) : null;
-        LocalDate to = dateTo != null ? LocalDate.parse(dateTo) : null;
-
-        Page<Transaction> page;
-        if (category != null) {
-            page = transactionRepository.findByCreatedByAndCategory(userId, category, pageable);
-        } else {
-            page = transactionRepository.findByFilters(userId, null, from, to, pageable);
-        }
-        return page.map(this::toResponse);
+    /** The user's transactions; every filter is optional and they combine (category and date range together). */
+    public Page<TransactionResponse> findAll(UUID userId, String category, LocalDate dateFrom, LocalDate dateTo, Pageable pageable) {
+        return transactionRepository.findByFilters(userId, category, dateFrom, dateTo, pageable).map(this::toResponse);
     }
 
     public TransactionResponse findById(UUID id, UUID userId) {
-        Transaction transaction = transactionRepository.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + id));
-
-        if (!transaction.getCreatedBy().equals(userId)) {
-            throw new com.financetracker.common.exception.AuthenticationException("Access denied");
-        }
-
-        return toResponse(transaction);
+        return toResponse(owned(id, userId));
     }
 
     @Transactional
     public TransactionResponse update(UUID id, TransactionRequest request, UUID userId) {
-        Transaction transaction = transactionRepository.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + id));
-
-        if (!transaction.getCreatedBy().equals(userId)) {
-            throw new com.financetracker.common.exception.AuthenticationException("Access denied");
-        }
-
+        Transaction transaction = owned(id, userId);
         transaction.setDate(request.date());
         transaction.setRawDescription(request.rawDescription());
         transaction.setCleanMerchant(request.cleanMerchant());
@@ -120,13 +99,7 @@ public class TransactionService {
 
     @Transactional
     public void delete(UUID id, UUID userId) {
-        Transaction transaction = transactionRepository.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + id));
-
-        if (!transaction.getCreatedBy().equals(userId)) {
-            throw new com.financetracker.common.exception.AuthenticationException("Access denied");
-        }
-
+        Transaction transaction = owned(id, userId);
         receiptItemRepository.deleteByTransactionId(id);
         transactionRepository.delete(transaction);
     }
@@ -183,6 +156,15 @@ public class TransactionService {
             Collections.unmodifiableList(monthlyTrend),
             Collections.unmodifiableList(recentTransactions)
         );
+    }
+
+    /**
+     * The transaction with this id if it belongs to the user. Another user's transaction is reported as
+     * not found, so ids can't be probed.
+     */
+    private Transaction owned(UUID id, UUID userId) {
+        return transactionRepository.findByIdAndCreatedBy(id, userId)
+            .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + id));
     }
 
     private TransactionResponse toResponse(Transaction t) {

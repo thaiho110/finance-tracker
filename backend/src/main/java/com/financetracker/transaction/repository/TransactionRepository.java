@@ -11,14 +11,13 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
 
-    Page<Transaction> findByCreatedBy(UUID createdBy, Pageable pageable);
-
-    Page<Transaction> findByCreatedByAndCategory(UUID createdBy, String category, Pageable pageable);
+    Optional<Transaction> findByIdAndCreatedBy(UUID id, UUID createdBy);
 
     @Query("""
         SELECT t FROM Transaction t
@@ -43,8 +42,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     @Query("SELECT DISTINCT t.category FROM Transaction t WHERE t.createdBy = :createdBy ORDER BY t.category")
     List<String> findDistinctCategoriesByCreatedBy(@Param("createdBy") UUID createdBy);
-
-    boolean existsByIdAndCreatedBy(UUID id, UUID createdBy);
 
     long countByCreatedBy(UUID createdBy);
 
