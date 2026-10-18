@@ -4,6 +4,9 @@ import com.financetracker.category.service.CategorizationService;
 import com.financetracker.ocr.dto.ParsedReceiptResponse;
 import com.financetracker.transaction.service.DeduplicationService;
 import lombok.RequiredArgsConstructor;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,31 +31,42 @@ public class OcrService {
     @Value("${app.ocr.image-max-width:1024}")
     private int imageMaxWidth;
 
+    @Value("${app.ocr.pdf-dpi:300}")
+    private int pdfDpi;
+
     /**
-     * Process a receipt image.
-     * The raw image bytes are discarded after processing.
+     * Process a receipt image or PDF.
+     * The raw file bytes are discarded after processing.
      * A normalized version is generated for potential storage.
      */
-    public ParsedReceiptResponse processReceipt(MultipartFile image, UUID userId) {
+    public ParsedReceiptResponse processReceipt(MultipartFile file, UUID userId) {
         try {
-            // 1. Validate image
-            byte[] imageBytes = image.getBytes();
-            if (imageBytes.length == 0) {
-                throw new IllegalArgumentException("Receipt image is empty");
+            // 1. Validate file
+            byte[] fileBytes = file.getBytes();
+            if (fileBytes.length == 0) {
+                throw new IllegalArgumentException("Receipt file is empty");
             }
 
-            // 2. Normalize image (resize, convert to standard format)
-            byte[] normalizedImage = normalizeImage(imageBytes);
+            // 2. Normalize to image (handle PDF if needed)
+            byte[] normalizedImage;
+            String contentType = file.getContentType();
+            String filename = file.getOriginalFilename();
+
+            if (isPdf(contentType, filename)) {
+                normalizedImage = renderPdfPageToImage(fileBytes);
+            } else {
+                normalizedImage = normalizeImage(fileBytes);
+            }
 
             // 3. Extract receipt data (stub — replace with actual OCR implementation)
-            // TODO: Implement actual OCR extraction (e.g. Tesseract Tess4J)
+            // TODO: Implement actual OCR extraction (e.g. OpenAI Vision API per ADR-003)
             ParsedReceiptResponse response = extractReceiptData(normalizedImage);
 
             // 4. Check duplicates
             boolean isDuplicate = deduplicationService.isDuplicate(userId, response.date(), response.totalAmount());
             String category = categorizationService.categorize(response.merchant());
 
-            // 5. Raw image bytes are discarded (not stored)
+            // 5. Raw file bytes are discarded (not stored)
             // Normalized image could be stored if configured
             // TODO: Add configurable normalized image storage
 
@@ -62,6 +76,41 @@ public class OcrService {
 
         } catch (Exception e) {
             throw new RuntimeException("OCR processing failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Check whether the uploaded file is a PDF based on content type or filename.
+     */
+    private boolean isPdf(String contentType, String filename) {
+        if (contentType != null && contentType.equalsIgnoreCase("application/pdf")) {
+            return true;
+        }
+        if (filename != null && filename.toLowerCase().endsWith(".pdf")) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Render the first page of a PDF to a JPEG image at the configured DPI.
+     */
+    private byte[] renderPdfPageToImage(byte[] pdfBytes) {
+        try (PDDocument document = Loader.loadPDF(pdfBytes)) {
+            PDFRenderer renderer = new PDFRenderer(document);
+            // Render first page at configured DPI for OCR-quality resolution
+            BufferedImage pageImage = renderer.renderImageWithDPI(0, pdfDpi);
+
+            // Convert to JPEG bytes via the same normalization pipeline
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(pageImage, "jpg", baos);
+            byte[] jpegBytes = baos.toByteArray();
+
+            // Resize if wider than max
+            return normalizeImage(jpegBytes);
+
+        } catch (Exception e) {
+            throw new RuntimeException("PDF rendering failed: " + e.getMessage(), e);
         }
     }
 
@@ -105,7 +154,7 @@ public class OcrService {
 
     /**
      * Placeholder for OCR extraction.
-     * TODO: Implement actual OCR logic (e.g. Tesseract via Tess4J).
+     * TODO: Implement actual OCR logic (e.g. OpenAI Vision API per ADR-003).
      */
     private ParsedReceiptResponse extractReceiptData(byte[] normalizedImage) {
         return new ParsedReceiptResponse(

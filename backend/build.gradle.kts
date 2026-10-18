@@ -40,6 +40,9 @@ dependencies {
     // CSV Parsing
     implementation("org.apache.commons:commons-csv:1.11.0")
 
+    // PDF Processing — render PDF pages to images for OCR
+    implementation("org.apache.pdfbox:pdfbox:3.0.3")
+
     // JWT — using Gson serializer to avoid Jackson 2/3 classpath conflict
     implementation("io.jsonwebtoken:jjwt-api:0.11.5")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")

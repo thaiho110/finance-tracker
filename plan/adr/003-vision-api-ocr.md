@@ -1,7 +1,7 @@
 # ADR-003: Vision API for Receipt OCR
 
 ## Status
-Accepted
+Superseded by [ADR-014](./014-local-tesseract-ocr.md) (2026-10-18)
 
 ## Context
 Receipt OCR requires extracting structured data (merchant name, date, total amount, category, line items) from uploaded receipt photos. Receipt quality varies (creases, glare, small fonts, different languages).

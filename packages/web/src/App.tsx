@@ -23,14 +23,11 @@ function AuthCheck({ children }: { children: React.ReactNode }) {
     const token = tokenStorage.getToken();
     const refreshToken = tokenStorage.getRefreshToken();
 
-    // Default to dark mode; respect saved preference
-    const darkPref = localStorage.getItem('ft_dark');
-    if (darkPref === 'false') {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    } else {
-      document.documentElement.classList.add('dark');
-    }
+    // Light mode is the default (the design is light-first); dark only when the user chose it
+    let darkPref: string | null = null;
+    try { darkPref = localStorage.getItem('ft_dark'); } catch { /* storage unavailable */ }
+    document.documentElement.classList.toggle('dark', darkPref === 'true');
+    document.documentElement.classList.remove('light');
 
     if (token && refreshToken) {
       // Try to restore session from stored tokens

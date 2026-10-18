@@ -737,13 +737,14 @@ volumes:
 |---|-------|------|
 | 001 | Modular Monolith Architecture | [adr/001-modular-monolith.md](./adr/001-modular-monolith.md) |
 | 002 | PostgreSQL with Spring Data JPA + Flyway | [adr/002-postgresql-jpa-flyway.md](./adr/002-postgresql-jpa-flyway.md) |
-| 003 | Vision API for Receipt OCR | [adr/003-vision-api-ocr.md](./adr/003-vision-api-ocr.md) |
+| 003 | ~~Vision API for Receipt OCR~~ (superseded by 014) | [adr/003-vision-api-ocr.md](./adr/003-vision-api-ocr.md) |
 | 004 | Apache Commons CSV for CSV Parsing | [adr/004-apache-commons-csv.md](./adr/004-apache-commons-csv.md) |
 | 005 | Keyword + Regex Categorization | [adr/005-keyword-categorization.md](./adr/005-keyword-categorization.md) |
 | 006 | Spring Boot 3.x Backend with Java 21 | [adr/006-spring-boot-backend.md](./adr/006-spring-boot-backend.md) |
 | 007 | Vite + React + Tailwind + shadcn/ui Frontend | [adr/007-vite-react-frontend.md](./adr/007-vite-react-frontend.md) |
 | 008 | OpenTelemetry + Grafana Observability Stack | [adr/008-observability-stack.md](./adr/008-observability-stack.md) |
 | 009 | Multi-Client API Design (v1, BFF) | [adr/009-multi-client-api.md](./adr/009-multi-client-api.md) |
+| 014 | Local Tesseract OCR + Rule-Based Receipt Parsing | [adr/014-local-tesseract-ocr.md](./adr/014-local-tesseract-ocr.md) |
 
 ---
 

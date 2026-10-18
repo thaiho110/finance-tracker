@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   LayoutDashboard,
@@ -8,10 +8,9 @@ import {
   Moon,
   Sun,
   Menu,
-  X,
   Wallet,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { logout as logoutAction } from '@/store/auth-slice';
 import { tokenStorage } from '@/lib/token-storage';
 import type { RootState } from '@/store';
@@ -25,18 +24,33 @@ const navItems = [
   { to: '/upload', label: 'Import', icon: Upload },
 ];
 
+/** Map route paths to page titles for the top bar */
+const pageTitles: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/transactions': 'Transactions',
+  '/upload': 'Import',
+};
+
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { email } = useSelector((state: RootState) => state.auth);
+
+  const pageTitle = useMemo(() => {
+    // Match the current path to a title
+    for (const [path, title] of Object.entries(pageTitles)) {
+      if (location.pathname.startsWith(path)) return title;
+    }
+    return '';
+  }, [location.pathname]);
 
   const toggleDark = () => {
     const root = document.documentElement;
     const isDark = root.classList.contains('dark');
     root.classList.toggle('dark');
-    root.classList.toggle('light');
     setDark(!isDark);
     localStorage.setItem('ft_dark', (!isDark).toString());
   };
@@ -50,35 +64,35 @@ export function AppLayout() {
   const initials = email?.charAt(0).toUpperCase() || '?';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-bg-canvas">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/45 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — 240px, bg-sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-sidebar-border bg-sidebar transition-transform lg:static lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col border-r border-sidebar-border bg-sidebar transition-transform lg:static lg:translate-x-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         {/* Brand header */}
         <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/20">
-            <Wallet className="h-5 w-5 text-white" />
+          <div className="flex size-9 items-center justify-center rounded-xl bg-brand-primary shadow-sm">
+            <Wallet className="size-5 text-text-on-primary" />
           </div>
           <div>
             <span className="text-base font-semibold tracking-tight text-sidebar-foreground">Finance Tracker</span>
-            <p className="-mt-0.5 text-[11px] text-sidebar-foreground/40">Personal Finance</p>
+            <p className="-mt-0.5 text-[11px] text-text-muted">Personal Finance</p>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-3 pt-4">
+        <nav className="flex-1 space-y-1 p-4">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -86,14 +100,14 @@ export function AppLayout() {
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                  'nav-item',
                   isActive
-                    ? 'bg-emerald-500/10 text-emerald-400 shadow-sm'
-                    : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                    ? 'bg-brand-primary-soft text-brand-primary'
+                    : 'text-text-muted hover:bg-bg-muted hover:text-text-default'
                 )
               }
             >
-              <item.icon className="h-4 w-4" />
+              <item.icon className="size-[18px]" />
               {item.label}
             </NavLink>
           ))}
@@ -101,40 +115,66 @@ export function AppLayout() {
 
         {/* Bottom section */}
         <div className="border-t border-sidebar-border p-3">
-          <div className="rounded-lg bg-sidebar-accent/50 p-3">
-            <p className="text-[11px] text-sidebar-foreground/40">Tracked this month</p>
-            <p className="text-sm font-semibold text-sidebar-foreground">—</p>
+          <div className="rounded-lg bg-bg-muted p-3">
+            <p className="text-[11px] text-text-muted">Tracked this month</p>
+            <p className="text-sm font-semibold text-text-default">—</p>
           </div>
         </div>
       </aside>
 
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top bar */}
-        <header className="flex h-16 items-center justify-between border-b border-border bg-card/50 px-6 backdrop-blur-sm">
+        {/* Top bar — 64px, bg-canvas, page title on left */}
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-border-default bg-bg-canvas px-8">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="lg:hidden text-muted-foreground">
-              <Menu className="h-5 w-5" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden text-text-muted"
+            >
+              <Menu className="size-5" />
             </Button>
+            <h1 className="page-title">{pageTitle}</h1>
           </div>
+
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={toggleDark} title="Toggle theme" className="text-muted-foreground hover:text-foreground">
-              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {/* Dark mode toggle */}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={toggleDark}
+              title="Toggle theme"
+              className="text-text-muted hover:text-text-default"
+            >
+              {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </Button>
-            <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-1.5">
-              <Avatar className="h-7 w-7">
-                <AvatarFallback className="bg-emerald-500/20 text-xs font-medium text-emerald-400">{initials}</AvatarFallback>
+
+            {/* User info */}
+            <div className="flex items-center gap-2 rounded-lg bg-bg-muted px-3 py-1.5">
+              <Avatar className="size-7">
+                <AvatarFallback className="bg-brand-primary-soft text-xs font-medium text-brand-primary">
+                  {initials}
+                </AvatarFallback>
               </Avatar>
-              <span className="hidden text-sm text-muted-foreground sm:inline">{email}</span>
+              <span className="hidden text-sm text-text-muted sm:inline">{email}</span>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout" className="text-muted-foreground hover:text-destructive">
-              <LogOut className="h-4 w-4" />
+
+            {/* Logout */}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleLogout}
+              title="Logout"
+              className="text-text-muted hover:text-status-danger"
+            >
+              <LogOut className="size-4" />
             </Button>
           </div>
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto px-8 py-6">
           <Outlet />
         </main>
       </div>

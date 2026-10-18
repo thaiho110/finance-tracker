@@ -5,15 +5,17 @@ import { useLoginMutation } from '@/store/api/auth-api';
 import { setCredentials } from '@/store/auth-slice';
 import { tokenStorage } from '@/lib/token-storage';
 import type { RootState } from '@/store';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { cn } from 'cn';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [fieldError, setFieldError] = useState<'email' | 'password' | null>(null);
   const [login, { isLoading }] = useLoginMutation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -24,71 +26,75 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setFieldError(null);
+
+    if (!email.trim()) { setFieldError('email'); setError('Please enter your email address'); return; }
+    if (!password) { setFieldError('password'); setError('Please enter your password'); return; }
+
     try {
       const data = await login({ email, password }).unwrap();
       tokenStorage.setToken(data.token);
       tokenStorage.setRefreshToken(data.refreshToken);
       dispatch(setCredentials(data));
+      toast.success('Signed in successfully');
       navigate('/dashboard', { replace: true });
     } catch (err: any) {
-      setError(err?.data?.detail || err?.data?.message || err?.data?.error?.message || 'Login failed');
+      const message = err?.data?.detail || err?.data?.message || err?.error || 'Login failed. Please try again.';
+      setError(message);
     }
   };
 
   return (
-    <Card className="border-border/50 bg-card/80 shadow-xl shadow-black/10 backdrop-blur-sm">
-      <div className="px-6 pt-6">
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">Welcome back</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Sign in to your account</p>
+    <div className="surface-card p-6">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold leading-7 text-text-default">Welcome back</h2>
+        <p className="mt-1 text-sm text-text-muted">Sign in to your account</p>
       </div>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4 pt-6">
-          {error && (
-            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="h-10 border-border bg-background/50 text-foreground placeholder:text-muted-foreground/50 focus:border-emerald-500/50 focus:ring-emerald-500/20"
-            />
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {/* Error banner */}
+        {error && (
+          <div className="rounded-[8px] border border-status-danger/20 bg-status-danger-soft px-4 py-3 text-sm text-status-danger">
+            {error}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="h-10 border-border bg-background/50 text-foreground placeholder:text-muted-foreground/50 focus:border-emerald-500/50 focus:ring-emerald-500/20"
-            />
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <Button
-            type="submit"
-            className="w-full h-10 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-medium shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-emerald-500/30 transition-all duration-200"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </Button>
-          <p className="text-sm text-muted-foreground">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-emerald-400 hover:text-emerald-300 transition-colors">
-              Create one
-            </Link>
-          </p>
-        </CardFooter>
+        )}
+
+        {/* Email */}
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="email" className="field-label">Email</Label>
+          <Input
+            id="email" type="email" required
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setFieldError(null); }}
+            placeholder="you@example.com"
+            className={cn(fieldError === 'email' && 'aria-invalid:error-ring border-status-danger')}
+          />
+        </div>
+
+        {/* Password */}
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="password" className="field-label">Password</Label>
+          <Input
+            id="password" type="password" required
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setFieldError(null); }}
+            placeholder="••••••••"
+            className={cn(fieldError === 'password' && 'aria-invalid:error-ring border-status-danger')}
+          />
+        </div>
+
+        {/* Submit */}
+        <Button type="submit" className="w-full h-10" disabled={isLoading}>
+          {isLoading ? 'Signing in…' : 'Sign in'}
+        </Button>
+
+        <p className="text-center text-sm text-text-muted">
+          Don&apos;t have an account?{' '}
+          <Link to="/register" className="font-medium text-brand-primary hover:underline">
+            Create one
+          </Link>
+        </p>
       </form>
-    </Card>
+    </div>
   );
 }
