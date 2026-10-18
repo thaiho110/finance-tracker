@@ -8,6 +8,9 @@ import {
   Moon,
   Sun,
   Menu,
+  Users,
+  ShieldCheck,
+  ScrollText,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { logout as logoutAction } from '@/store/auth-slice';
@@ -17,11 +20,26 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Peek } from '@doan-labs/peek';
 import { cn } from 'cn';
+import { useCan, type Permission } from '@/lib/permissions';
 
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
-  { to: '/upload', label: 'Import', icon: Upload },
+interface NavItem {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  /** Shown when the user has any of these permissions (ADR-018). */
+  anyOf: Permission[];
+}
+
+const navItems: NavItem[] = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, anyOf: ['DASHBOARD_VIEW'] },
+  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight, anyOf: ['TRANSACTION_READ'] },
+  { to: '/upload', label: 'Import', icon: Upload, anyOf: ['CSV_IMPORT', 'RECEIPT_SCAN'] },
+];
+
+const adminItems: NavItem[] = [
+  { to: '/admin/users', label: 'Users', icon: Users, anyOf: ['USER_READ'] },
+  { to: '/admin/roles', label: 'Roles & features', icon: ShieldCheck, anyOf: ['USER_READ'] },
+  { to: '/admin/audit', label: 'Audit log', icon: ScrollText, anyOf: ['AUDIT_READ'] },
 ];
 
 /** Map route paths to page titles for the top bar */
@@ -29,6 +47,9 @@ const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/transactions': 'Transactions',
   '/upload': 'Import',
+  '/admin/users': 'Users',
+  '/admin/roles': 'Roles & features',
+  '/admin/audit': 'Audit log',
 };
 
 export function AppLayout() {
@@ -37,7 +58,12 @@ export function AppLayout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { id, email } = useSelector((state: RootState) => state.auth);
+  const { id, email, permissions } = useSelector((state: RootState) => state.auth);
+  const can = useCan();
+  // Only fully known permissions decide whether the admin section exists, so regular users never see it flash.
+  const visible = (items: NavItem[]) => items.filter((item) => item.anyOf.some((permission) => can(permission)));
+  const mainNav = visible(navItems);
+  const adminNav = permissions === null ? [] : visible(adminItems);
 
   const pageTitle = useMemo(() => {
     // Match the current path to a title
@@ -91,8 +117,8 @@ export function AppLayout() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-4">
-          {navItems.map((item) => (
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+          {mainNav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -110,6 +136,30 @@ export function AppLayout() {
               {item.label}
             </NavLink>
           ))}
+
+          {adminNav.length > 0 && (
+            <>
+              <p className="px-3 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wider text-text-muted">Administration</p>
+              {adminNav.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setSidebarOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      'nav-item',
+                      isActive
+                        ? 'bg-brand-primary-soft text-brand-primary'
+                        : 'text-text-muted hover:bg-bg-muted hover:text-text-default'
+                    )
+                  }
+                >
+                  <item.icon className="size-[18px]" />
+                  {item.label}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
 
         {/* Bottom section */}

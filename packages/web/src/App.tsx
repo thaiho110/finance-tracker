@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { logout, setCredentials, setLoading } from '@/store/auth-slice';
@@ -9,12 +9,16 @@ import type { AppDispatch } from '@/store';
 import { AppLayout } from '@/layouts/app-layout';
 import { AuthLayout } from '@/layouts/auth-layout';
 import { ProtectedRoute } from '@/components/guards/auth-guard';
+import { HomeRedirect, RequirePermission } from '@/components/guards/require-permission';
 import LoginPage from '@/pages/login-page';
 import RegisterPage from '@/pages/register-page';
 import DashboardPage from '@/pages/dashboard-page';
 import TransactionsPage from '@/pages/transactions-page';
 import TransactionDetailPage from '@/pages/transaction-detail-page';
 import UploadPage from '@/pages/upload-page';
+import AdminUsersPage from '@/pages/admin/users-page';
+import AdminRolesPage from '@/pages/admin/roles-page';
+import AdminAuditPage from '@/pages/admin/audit-page';
 import { Toaster } from '@/components/ui/sonner';
 
 function AuthCheck({ children }: { children: React.ReactNode }) {
@@ -47,6 +51,7 @@ function AuthCheck({ children }: { children: React.ReactNode }) {
           id: user.id,
           email: user.email,
           role: user.role,
+          permissions: user.permissions,
         }));
       })
       .catch((err: { status?: number | string }) => {
@@ -85,15 +90,24 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/transactions" element={<TransactionsPage />} />
-            <Route path="/transactions/:id" element={<TransactionDetailPage />} />
+            <Route path="/dashboard" element={<RequirePermission permission="DASHBOARD_VIEW"><DashboardPage /></RequirePermission>} />
+            <Route path="/transactions" element={<RequirePermission permission="TRANSACTION_READ"><TransactionsPage /></RequirePermission>} />
+            <Route
+              path="/transactions/:id"
+              element={<RequirePermission permission="TRANSACTION_READ"><TransactionDetailPage /></RequirePermission>}
+            />
+            {/* The import page checks CSV_IMPORT and RECEIPT_SCAN per tab */}
             <Route path="/upload" element={<UploadPage />} />
+
+            {/* Administration (ADR-018) */}
+            <Route path="/admin/users" element={<RequirePermission permission="USER_READ"><AdminUsersPage /></RequirePermission>} />
+            <Route path="/admin/roles" element={<RequirePermission permission="USER_READ"><AdminRolesPage /></RequirePermission>} />
+            <Route path="/admin/audit" element={<RequirePermission permission="AUDIT_READ"><AdminAuditPage /></RequirePermission>} />
           </Route>
 
           {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<HomeRedirect />} />
+          <Route path="*" element={<HomeRedirect />} />
         </Routes>
         <Toaster />
       </AuthCheck>

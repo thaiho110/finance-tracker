@@ -14,6 +14,7 @@ interface AuthResponse {
   id: string;
   email: string;
   role: string;
+  permissions: string[];
 }
 
 type QueryResult = { data: unknown } | { error: FetchBaseQueryError };
