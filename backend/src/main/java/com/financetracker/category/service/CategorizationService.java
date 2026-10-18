@@ -65,5 +65,12 @@ public class CategorizationService {
         return "Other";
     }
 
+    /**
+     * Merchant keywords known from the category mappings, used to recognize the merchant on scanned receipts.
+     */
+    public List<String> knownMerchantKeywords() {
+        return cache.stream().map(CachedMapping::keyword).toList();
+    }
+
     private record CachedMapping(String keyword, String category) { }
 }

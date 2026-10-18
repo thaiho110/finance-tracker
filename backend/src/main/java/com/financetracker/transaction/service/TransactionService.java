@@ -3,6 +3,7 @@ package com.financetracker.transaction.service;
 import com.financetracker.common.exception.EntityNotFoundException;
 import com.financetracker.transaction.dto.TransactionRequest;
 import com.financetracker.transaction.dto.TransactionResponse;
+import com.financetracker.transaction.model.ReceiptItem;
 import com.financetracker.transaction.model.SourceType;
 import com.financetracker.transaction.model.Transaction;
 import com.financetracker.transaction.repository.ReceiptItemRepository;
@@ -48,8 +49,29 @@ public class TransactionService {
 
         List<Transaction> saved = transactionRepository.saveAll(transactions);
         transactionsCreated.increment(saved.size());
+        saveReceiptItems(requests, saved);
 
         return saved.stream().map(this::toResponse).toList();
+    }
+
+    /** Stores receipt line items for OCR transactions; {@code saved} is in the same order as {@code requests}. */
+    private void saveReceiptItems(List<TransactionRequest> requests, List<Transaction> saved) {
+        List<ReceiptItem> items = new ArrayList<>();
+        for (int i = 0; i < Math.min(requests.size(), saved.size()); i++) {
+            TransactionRequest request = requests.get(i);
+            if (request.lineItems() == null || !SourceType.OCR.name().equals(request.sourceType())) {
+                continue;
+            }
+            UUID transactionId = saved.get(i).getId();
+            request.lineItems().forEach(line -> items.add(ReceiptItem.builder()
+                .transactionId(transactionId)
+                .itemDescription(line.item().strip())
+                .price(line.price())
+                .build()));
+        }
+        if (!items.isEmpty()) {
+            receiptItemRepository.saveAll(items);
+        }
     }
 
     public Page<TransactionResponse> findAll(UUID userId, String category, String dateFrom, String dateTo, Pageable pageable) {

@@ -21,6 +21,8 @@ import { cn } from 'cn';
 type Tab = 'csv' | 'ocr';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB — matches the backend multipart limit
+/** Receipt photos are shrunk in the browser before upload, so larger originals are fine. */
+const MAX_RECEIPT_PHOTO_SIZE = 25 * 1024 * 1024;
 
 interface ParsedRow {
   rowIndex: number;
@@ -44,6 +46,7 @@ interface OcrResult {
   category: string | null;
   isDuplicate: boolean;
   lineItems: LineItem[];
+  warnings: string[];
 }
 
 interface ReceiptForm {
@@ -65,14 +68,64 @@ function apiErrorMessage(err: any, fallback: string): string {
   return err?.data?.detail || err?.data?.message || fallback;
 }
 
-function rejectionMessage(rejections: FileRejection[], accepted: string): string {
+function rejectionMessage(rejections: FileRejection[], accepted: string, maxBytes = MAX_FILE_SIZE): string {
   const code = rejections[0]?.errors[0]?.code;
-  if (code === 'file-too-large') return 'This file is larger than 10MB.';
+  if (code === 'file-too-large') return `This file is larger than ${Math.round(maxBytes / (1024 * 1024))}MB.`;
   if (code === 'file-invalid-type') return `Unsupported file type. Use ${accepted}.`;
   return 'This file could not be used.';
 }
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
+/** Messages for the `code` the server returns when a receipt can't be read (ADR-014). */
+const OCR_ERROR_MESSAGES: Record<string, string> = {
+  UNREADABLE: 'Could not read this receipt. Try a clearer, well-lit photo.',
+  NOT_A_RECEIPT: "This doesn't look like a receipt — no amounts were found on it.",
+  UNSUPPORTED_FILE: "This file type isn't supported. Use a JPG, PNG or PDF.",
+  OCR_TIMEOUT: 'Reading took too long. Try a smaller or clearer photo.',
+  OCR_BUSY: 'Several receipts are being read right now. Try again in a moment.',
+  OCR_FAILED: "Receipt reading isn't available on the server right now.",
+  FILE_TOO_LARGE: 'This file is larger than 10MB.',
+};
+
+/** What to double-check, per warning code from the server. ITEMS_DO_NOT_MATCH_TOTAL is shown in the items table. */
+const OCR_WARNING_MESSAGES: Record<string, string> = {
+  TOTAL_NOT_FOUND: "Couldn't find the total — enter it from the receipt.",
+  TOTAL_GUESSED: 'The total was taken from the largest amount near the bottom — double-check it.',
+  DATE_NOT_FOUND: "Couldn't find a date, so today's date was used.",
+  DATE_SUSPICIOUS: "The date on the receipt didn't look right, so today's date was used.",
+  MERCHANT_NOT_FOUND: "Couldn't find the merchant name — add it.",
+};
+
+const MAX_UPLOAD_EDGE = 2400;
+const UPLOAD_JPEG_QUALITY = 0.9;
+
+/**
+ * Prepares a receipt photo for upload: applies the camera's EXIF rotation, shrinks it so the
+ * long edge is at most 2400 px and re-encodes it as JPEG (also strips metadata and converts
+ * formats the browser can decode but the server can't, like WebP/HEIC). PDFs are sent as they are.
+ */
+async function prepareReceiptImage(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return file;
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const scale = Math.min(1, MAX_UPLOAD_EDGE / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', UPLOAD_JPEG_QUALITY));
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch {
+    return file; // the server will report an unsupported file if it can't decode it either
+  }
+}
 
 /* ───────────────────────── shared pieces ───────────────────────── */
 
@@ -617,31 +670,33 @@ function ReceiptScan({ categories }: { categories: string[] }) {
     setForm(null);
     setEdited({});
     setError(null);
-    const formData = new FormData();
-    formData.append('image', f);
     const started = performance.now();
     try {
+      const formData = new FormData();
+      formData.append('image', await prepareReceiptImage(f));
       const data: OcrResult = await processOcr(formData).unwrap();
       setReadTimeMs(performance.now() - started);
-      const normalized: OcrResult = { ...data, lineItems: data?.lineItems || [] };
+      const normalized: OcrResult = { ...data, lineItems: data?.lineItems || [], warnings: data?.warnings || [] };
       setResult(normalized);
       setForm({
-        merchant: normalized.merchant && normalized.merchant !== 'UNKNOWN MERCHANT' ? normalized.merchant : '',
+        merchant: normalized.merchant || '',
         date: normalized.date ? formatDateISO(normalized.date) : todayISO(),
         amount: Math.abs(Number(normalized.totalAmount) || 0),
         category: normalized.category || 'Other',
       });
     } catch (err: any) {
+      const code: string | undefined = err?.status === 413 ? 'FILE_TOO_LARGE' : err?.data?.code;
+      const known = code ? OCR_ERROR_MESSAGES[code] : undefined;
       setError({
-        title: 'Could not read this receipt. Try a clearer photo.',
-        detail: apiErrorMessage(err, ''),
+        title: known || 'Could not read this receipt. Try a clearer photo.',
+        detail: known ? undefined : apiErrorMessage(err, ''),
       });
     }
   }, [processOcr]);
 
   const onDrop = useCallback((accepted: File[], rejected: FileRejection[]) => {
     if (rejected.length) {
-      setError({ title: 'Could not use this file.', detail: rejectionMessage(rejected, 'a JPG, PNG or PDF') });
+      setError({ title: 'Could not use this file.', detail: rejectionMessage(rejected, 'a JPG, PNG or PDF', MAX_RECEIPT_PHOTO_SIZE) });
       return;
     }
     if (accepted[0]) readReceipt(accepted[0]);
@@ -652,10 +707,13 @@ function ReceiptScan({ categories }: { categories: string[] }) {
     accept: {
       'image/jpeg': ['.jpg', '.jpeg'],
       'image/png': ['.png'],
+      'image/webp': ['.webp'],
+      'image/heic': ['.heic'],
+      'image/heif': ['.heif'],
       'application/pdf': ['.pdf'],
     },
     maxFiles: 1,
-    maxSize: MAX_FILE_SIZE,
+    maxSize: MAX_RECEIPT_PHOTO_SIZE,
     noClick: !!file,
     noKeyboard: !!file,
   });
@@ -675,6 +733,9 @@ function ReceiptScan({ categories }: { categories: string[] }) {
         amount: form.amount,
         category: form.category,
         sourceType: 'OCR',
+        lineItems: (result?.lineItems || [])
+          .filter((li) => li.item?.trim())
+          .map((li) => ({ item: li.item.trim(), price: Math.abs(Number(li.price) || 0) })),
       }]).unwrap();
       toast.success('Receipt saved as a transaction', {
         action: { label: 'View', onClick: () => navigate('/transactions') },
@@ -700,7 +761,7 @@ function ReceiptScan({ categories }: { categories: string[] }) {
           title="Drop a receipt photo here"
           subtitle="or click anywhere in this area to browse"
           browseLabel="Browse files"
-          helper="Supported: JPG, PNG or PDF · Maximum 10MB"
+          helper="Supported: JPG, PNG, HEIC or PDF · Maximum 10MB"
           onBrowse={dropzone.open}
         />
         <p className="flex items-center justify-center gap-2 text-xs font-medium text-text-muted">
@@ -716,11 +777,28 @@ function ReceiptScan({ categories }: { categories: string[] }) {
   const itemsMatch = form ? Math.round(itemsTotal) === Math.round(form.amount) : false;
   const canSave = !!form && !!form.merchant.trim() && !!form.date && form.amount > 0 && !!form.category;
 
-  const autoMark = (key: keyof ReceiptForm) => (
-    <span className={cn('text-xs font-medium', edited[key] ? 'text-text-muted' : 'text-brand-primary')}>
-      {edited[key] ? 'Edited' : 'Auto-detected'}
-    </span>
-  );
+  const missing: Partial<Record<keyof ReceiptForm, boolean>> = {
+    merchant: !result?.merchant,
+    date: !result?.date,
+    amount: result?.totalAmount == null,
+  };
+  const warningMessages = (result?.warnings || [])
+    .map((code) => OCR_WARNING_MESSAGES[code])
+    .filter((message): message is string => !!message);
+
+  const autoMark = (key: keyof ReceiptForm) => {
+    const state = edited[key] ? 'edited' : missing[key] ? 'missing' : 'auto';
+    return (
+      <span className={cn(
+        'text-xs font-medium',
+        state === 'edited' && 'text-text-muted',
+        state === 'missing' && 'text-status-warning',
+        state === 'auto' && 'text-brand-primary'
+      )}>
+        {state === 'edited' ? 'Edited' : state === 'missing' ? 'Not found' : 'Auto-detected'}
+      </span>
+    );
+  };
 
   /* ── Reading / result state (two columns) ── */
   return (
@@ -791,6 +869,15 @@ function ReceiptScan({ categories }: { categories: string[] }) {
                     </p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); navigate('/transactions'); }}>View</Button>
+                </div>
+              )}
+
+              {warningMessages.length > 0 && (
+                <div className="flex items-start gap-2.5 rounded-[8px] border border-status-warning/30 px-3 py-2.5">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-status-warning" />
+                  <ul className="flex flex-col gap-0.5 text-xs text-text-default">
+                    {warningMessages.map((message) => <li key={message}>{message}</li>)}
+                  </ul>
                 </div>
               )}
 
