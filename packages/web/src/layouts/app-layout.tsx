@@ -16,6 +16,7 @@ import { tokenStorage } from '@/lib/token-storage';
 import type { RootState } from '@/store';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Peek } from '@doan-labs/peek';
 import { cn } from 'cn';
 
 const navItems = [
@@ -152,11 +153,24 @@ export function AppLayout() {
 
             {/* User info */}
             <div className="flex items-center gap-2 rounded-lg bg-bg-muted px-3 py-1.5">
-              <Avatar className="size-7">
-                <AvatarFallback className="bg-brand-primary-soft text-xs font-medium text-brand-primary">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              {email ? (
+                // Deterministic avatar from the email (same face everywhere); version pinned so library updates don't redraw it
+                <Peek
+                  name={email}
+                  size={28}
+                  square={false}
+                  frame={dark ? 'ink' : 'paper'}
+                  version={1}
+                  title={false}
+                  className="shrink-0"
+                />
+              ) : (
+                <Avatar className="size-7">
+                  <AvatarFallback className="bg-brand-primary-soft text-xs font-medium text-brand-primary">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              )}
               <span className="hidden text-sm text-text-muted sm:inline">{email}</span>
             </div>
 
