@@ -9,8 +9,20 @@ A single financial record with a date, merchant, amount, and category. The core 
 _Avoid_: Record, entry, line item
 
 **ParsedTransaction**:
-A transaction extracted from a CSV file, shown in a preview grid for user review before being saved. Not yet persisted.
+A transaction drafted by the Transaction Intake (from a CSV row or a receipt), shown in a preview grid for user review before being saved. Not yet persisted.
 _Avoid_: Raw transaction, CSV row
+
+**RawEntry**:
+One transaction as an import source read it (a CSV row, a scanned receipt) before categorizing or duplicate checks. Fields the source could not read are null.
+_Avoid_: Raw row, raw transaction
+
+**Transaction Intake**:
+The single path every import source goes through (`TransactionIntake.draft`): turns RawEntries into ParsedTransactions with a category and a duplicate flag. CSV import and receipt OCR are adapters in front of it.
+_Avoid_: Processing engine, pipeline
+
+**Possible duplicate**:
+A ParsedTransaction whose amount (ignoring sign) matches a saved transaction, or an earlier entry in the same upload, dated within 2 days either side. Flagged for review, never removed automatically.
+_Avoid_: Duplicate (as if certain)
 
 **Receipt**:
 An uploaded receipt image that has been processed by OCR to extract merchant, date, total, and line items.
