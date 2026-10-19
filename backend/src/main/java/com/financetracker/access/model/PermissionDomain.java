@@ -7,6 +7,9 @@ public enum PermissionDomain {
     IMPORTS,
     CATEGORIES,
     BUDGETS,
+    ASSISTANT,
+    INTEGRATIONS,
+    MEALS,
     ADMINISTRATION,
     MONITORING
 }

@@ -1,5 +1,6 @@
 package com.financetracker.auth.service;
 
+import com.financetracker.access.model.ModuleState;
 import com.financetracker.access.service.AccessService;
 import com.financetracker.auth.dto.AuthRequest;
 import com.financetracker.auth.dto.AuthResponse;
@@ -70,7 +71,7 @@ public class AuthenticationService {
         var refreshToken = jwtService.generateRefreshToken(userDetails);
 
         return new AuthResponse(token, refreshToken, saved.getId().toString(), saved.getEmail(), saved.getRole(),
-            permissionNames(saved));
+            permissionNames(saved), moduleStates(saved));
     }
 
     /** The current registration mode, so clients can show or hide sign-up and ask for an invite. */
@@ -94,7 +95,7 @@ public class AuthenticationService {
         var refreshToken = jwtService.generateRefreshToken(userDetails);
 
         return new AuthResponse(token, refreshToken, user.getId().toString(), user.getEmail(), user.getRole(),
-            permissionNames(user));
+            permissionNames(user), moduleStates(user));
     }
 
     public AuthResponse refreshToken(String authHeader) {
@@ -122,7 +123,7 @@ public class AuthenticationService {
         var newRefreshToken = jwtService.generateRefreshToken(userDetails);
 
         return new AuthResponse(newToken, newRefreshToken, user.getId().toString(), user.getEmail(), user.getRole(),
-            permissionNames(user));
+            permissionNames(user), moduleStates(user));
     }
 
     /**
@@ -134,7 +135,8 @@ public class AuthenticationService {
     public UserInfoResponse currentUser(String email) {
         var user = userRepository.findByEmail(email)
             .orElseThrow(() -> new AuthenticationException("User not found"));
-        return new UserInfoResponse(user.getId().toString(), user.getEmail(), user.getRole(), permissionNames(user));
+        return new UserInfoResponse(user.getId().toString(), user.getEmail(), user.getRole(),
+            permissionNames(user), moduleStates(user));
     }
 
     /** Effective permissions as sorted names, for clients to show or hide features. */
@@ -143,5 +145,10 @@ public class AuthenticationService {
             .map(Enum::name)
             .sorted()
             .toList();
+    }
+
+    /** The user's module states (ADR-020 §4), for clients to build navigation and the home screen. */
+    private List<ModuleState> moduleStates(User user) {
+        return accessService.modules(user.getId(), user.getRole());
     }
 }

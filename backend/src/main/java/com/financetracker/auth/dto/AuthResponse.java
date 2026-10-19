@@ -1,5 +1,6 @@
 package com.financetracker.auth.dto;
 
+import com.financetracker.access.model.ModuleState;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
@@ -24,9 +25,13 @@ public record AuthResponse(
 
     @Schema(description = "What this user may do right now; clients use it only to show or hide features",
         example = "[\"CSV_IMPORT\", \"TRANSACTION_READ\"]")
-    List<String> permissions
+    List<String> permissions,
+
+    @Schema(description = "The user's modules (ADR-020 §4); clients build navigation and the home screen from these")
+    List<ModuleState> modules
 ) {
     public AuthResponse {
         permissions = permissions == null ? List.of() : List.copyOf(permissions);
+        modules = modules == null ? List.of() : List.copyOf(modules);
     }
 }
