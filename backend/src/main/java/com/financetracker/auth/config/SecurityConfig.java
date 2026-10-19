@@ -23,6 +23,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import static com.financetracker.access.model.Permission.ASSISTANT_USE;
 import static com.financetracker.access.model.Permission.AUDIT_READ;
 import static com.financetracker.access.model.Permission.BUDGETS;
 import static com.financetracker.access.model.Permission.CATEGORY_ADMIN;
@@ -101,6 +102,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/v1/meals/calls").hasAuthority(MEALS_CALL.name())
             .requestMatchers(HttpMethod.GET, "/api/v1/meals/**").hasAnyAuthority(MEALS_CALL.name(), MEALS_RESPOND.name())
             .requestMatchers("/api/v1/integrations/**").hasAuthority(INTEGRATIONS_MANAGE.name())
+            .requestMatchers("/api/v1/assistant/**").hasAuthority(ASSISTANT_USE.name())
 
             // Administration
             .requestMatchers("/api/v1/admin/users/*/features/**").hasAuthority(FEATURE_MANAGE.name())
