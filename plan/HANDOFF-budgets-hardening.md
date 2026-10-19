@@ -38,8 +38,12 @@ Deploy hardening (item 3):
 - Registration modes `OPEN | INVITE_ONLY | CLOSED` (ADR-016). Default `INVITE_ONLY` in production, `OPEN` in dev.
   Admin creates single-use invite links that expire after 7 days and sends them by hand (no SMTP). Mode is changed
   on an admin Settings page.
-- Device API keys: stored hashed, created and revoked by an admin, shown once. Replaces `ApiKeyAuthFilter`, which
-  today accepts **any** non-blank `X-Api-Key` as a device.
+- Device API keys: stored hashed, created and revoked by an admin, shown once. **Done** (2026-10-19, branch
+  `feature/device-api-keys` off `feature/deploy-hardening`): `V9` + `auth` entity/repo/service, a
+  `DeviceApiKeyAuthenticationFilter` (JWT → device → rate-limit order), `/api/v1/admin/device-keys` endpoints, a web
+  Settings "Device keys" section, and unit + Testcontainers tests. Devices authenticate as their owner with
+  **data-plane permissions only** (never admin). There was no `ApiKeyAuthFilter` to replace — `X-Api-Key` was only
+  used for rate-limit scoping; see the implementation note in ADR-016. `./gradlew check` and web `tsc -b` are green.
 - Backups: a `backup` compose service running `pg_dump` nightly into `./backups`, keeping 14 days; `restore.sh`; a
   documented restore test. Off-site copy comes with deployment.
 - Testcontainers integration tests in CI (migrations on existing data, category ownership 404s, budgets,
