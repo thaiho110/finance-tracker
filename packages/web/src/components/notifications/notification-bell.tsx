@@ -4,7 +4,13 @@ import { useUnreadCountQuery } from '@/store/api/notification-api';
 
 /** Bell + unread badge in the top bar; links to the notifications page (ADR-021). */
 export function NotificationBell() {
-  const { data } = useUnreadCountQuery(undefined, { pollingInterval: 30_000 });
+  // SSE delivers instantly; polling + focus/reconnect refetch are the fallback so the badge
+  // never needs a manual page refresh even when the live stream isn't connected.
+  const { data } = useUnreadCountQuery(undefined, {
+    pollingInterval: 15_000,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
   const count = data?.count ?? 0;
 
   return (

@@ -11,7 +11,13 @@ import {
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const { data: notifications = [] } = useNotificationsQuery();
+  // SSE live-updates this via cache invalidation; polling + focus/reconnect refetch ensure the
+  // feed stays current without a manual refresh even if the stream isn't connected.
+  const { data: notifications = [] } = useNotificationsQuery(undefined, {
+    pollingInterval: 15_000,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
   const [markRead] = useMarkNotificationReadMutation();
   const [markAllRead] = useMarkAllNotificationsReadMutation();
 
