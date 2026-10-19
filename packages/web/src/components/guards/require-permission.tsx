@@ -22,15 +22,7 @@ export function RequirePermission({ permission, children }: { permission: Permis
   return can(permission) ? <>{children}</> : <NotAvailable />;
 }
 
-/** Sends "/" to the first page this user can open. */
+/** Sends "/" to the dashboard, which is the general home hub for every user. */
 export function HomeRedirect() {
-  const can = useCan();
-  const target = can('DASHBOARD_VIEW')
-    ? '/dashboard'
-    : can('TRANSACTION_READ')
-      ? '/transactions'
-      : can('USER_READ')
-        ? '/admin/users'
-        : '/dashboard';
-  return <Navigate to={target} replace />;
+  return <Navigate to="/dashboard" replace />;
 }

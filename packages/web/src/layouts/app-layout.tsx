@@ -15,7 +15,6 @@ import {
   Tags,
   FolderCog,
   Settings,
-  MessageSquare,
   UtensilsCrossed,
   Webhook,
   SlidersHorizontal,
@@ -27,6 +26,8 @@ import type { RootState } from '@/store';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { AssistantWidget } from '@/components/assistant/assistant-widget';
+import { useNotificationStream } from '@/hooks/use-notification-stream';
 import { Peek } from '@doan-labs/peek';
 import { cn } from 'cn';
 import { useCan, type Permission } from '@/lib/permissions';
@@ -46,7 +47,6 @@ const navItems: NavItem[] = [
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight, anyOf: ['TRANSACTION_READ'] },
   { to: '/upload', label: 'Import', icon: Upload, anyOf: ['CSV_IMPORT', 'RECEIPT_SCAN'] },
   { to: '/settings/categories', label: 'Categories', icon: Tags, anyOf: ['CATEGORY_READ'] },
-  { to: '/assistant', label: 'Assistant', icon: MessageSquare, anyOf: ['ASSISTANT_USE'] },
   { to: '/meals', label: 'Meals', icon: UtensilsCrossed, anyOf: ['MEALS_CALL', 'MEALS_RESPOND'] },
   { to: '/settings/integrations', label: 'Integrations', icon: Webhook, anyOf: ['INTEGRATIONS_MANAGE'] },
   { to: '/settings/modules', label: 'Modules', icon: SlidersHorizontal, anyOf: [], always: true },
@@ -72,13 +72,14 @@ const pageTitles: Record<string, string> = {
   '/admin/categories': 'Default categories',
   '/admin/settings': 'Settings',
   '/settings/categories': 'Categories',
-  '/assistant': 'Assistant',
   '/meals': 'Meals',
   '/settings/integrations': 'Integrations',
   '/settings/modules': 'Modules',
+  '/notifications': 'Notifications',
 };
 
 export function AppLayout() {
+  useNotificationStream();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
   const dispatch = useDispatch();
@@ -268,6 +269,9 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Floating assistant bubble (ADR-024), on every page when the user has the Assistant module */}
+      <AssistantWidget />
     </div>
   );
 }

@@ -22,6 +22,11 @@ export default function ModulesPage() {
   const [setModule, { isLoading }] = useSetModuleMutation();
   const dispatch = useDispatch<AppDispatch>();
 
+  // At least one available module must stay on, so the last enabled+available one can't be turned off.
+  const enabledAvailable = modules.filter((m) => m.available && m.enabled);
+  const isRequired = (code: string) =>
+    enabledAvailable.length === 1 && enabledAvailable[0].code === code;
+
   const toggle = async (code: string, enabled: boolean) => {
     try {
       await setModule({ code, enabled }).unwrap();
@@ -57,15 +62,24 @@ export default function ModulesPage() {
               <div>
                 <p className="text-sm font-medium text-text-default">{LABELS[module.code] ?? module.code}</p>
                 {!module.available && <p className="text-xs text-text-muted">Not available on your account.</p>}
+                {module.available && isRequired(module.code) && (
+                  <p className="text-xs text-text-muted">Your only active module — turn another on first.</p>
+                )}
               </div>
-              <Button
-                variant={module.enabled ? 'default' : 'secondary'}
-                size="sm"
-                disabled={isLoading || !module.available}
-                onClick={() => toggle(module.code, !module.enabled)}
-              >
-                {module.enabled ? 'On' : 'Off'}
-              </Button>
+              {!module.available ? (
+                <span className="rounded-full bg-bg-muted px-2.5 py-1 text-xs font-medium text-text-muted">Unavailable</span>
+              ) : isRequired(module.code) ? (
+                <span className="rounded-full bg-brand-primary-soft px-2.5 py-1 text-xs font-medium text-brand-primary">Required</span>
+              ) : (
+                <Button
+                  variant={module.enabled ? 'default' : 'secondary'}
+                  size="sm"
+                  disabled={isLoading}
+                  onClick={() => toggle(module.code, !module.enabled)}
+                >
+                  {module.enabled ? 'On' : 'Off'}
+                </Button>
+              )}
             </div>
           ))}
           {modules.length === 0 && <p className="text-sm text-text-muted">No modules.</p>}

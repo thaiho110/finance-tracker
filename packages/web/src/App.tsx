@@ -23,10 +23,10 @@ import AdminAuditPage from '@/pages/admin/audit-page';
 import AdminCategoriesPage from '@/pages/admin/categories-page';
 import AdminSettingsPage from '@/pages/admin/settings-page';
 import CategoriesSettingsPage from '@/pages/settings/categories-page';
-import AssistantPage from '@/pages/assistant-page';
 import MealsPage from '@/pages/meals-page';
 import IntegrationsPage from '@/pages/settings/integrations-page';
 import ModulesPage from '@/pages/settings/modules-page';
+import NotificationsPage from '@/pages/notifications-page';
 import { Toaster } from '@/components/ui/sonner';
 
 function AuthCheck({ children }: { children: React.ReactNode }) {
@@ -98,7 +98,8 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/dashboard" element={<RequirePermission permission="DASHBOARD_VIEW"><DashboardPage /></RequirePermission>} />
+            {/* The dashboard is the general home hub for all features, so it's reachable by everyone. */}
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/budgets" element={<RequirePermission permission="BUDGETS"><BudgetsPage /></RequirePermission>} />
             <Route path="/transactions" element={<RequirePermission permission="TRANSACTION_READ"><TransactionsPage /></RequirePermission>} />
             <Route
@@ -109,12 +110,13 @@ export default function App() {
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/settings/categories" element={<RequirePermission permission="CATEGORY_READ"><CategoriesSettingsPage /></RequirePermission>} />
 
-            {/* Re-scope modules (ADR-020 §4, 023, 024, 025) */}
-            <Route path="/assistant" element={<RequirePermission permission="ASSISTANT_USE"><AssistantPage /></RequirePermission>} />
+            {/* Re-scope modules (ADR-020 §4, 023, 025). The Assistant (ADR-024) is a global bubble, not a route. */}
             <Route path="/meals" element={<RequirePermission permission="MEALS_RESPOND"><MealsPage /></RequirePermission>} />
             <Route path="/settings/integrations" element={<RequirePermission permission="INTEGRATIONS_MANAGE"><IntegrationsPage /></RequirePermission>} />
             {/* Modules settings is always available — it's where a user turns a module back on. */}
             <Route path="/settings/modules" element={<ModulesPage />} />
+            {/* Notifications feed (ADR-021), always available. */}
+            <Route path="/notifications" element={<NotificationsPage />} />
 
             {/* Administration (ADR-018) */}
             <Route path="/admin/users" element={<RequirePermission permission="USER_READ"><AdminUsersPage /></RequirePermission>} />

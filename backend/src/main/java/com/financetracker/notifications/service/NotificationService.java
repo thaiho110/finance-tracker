@@ -1,6 +1,7 @@
 package com.financetracker.notifications.service;
 
 import com.financetracker.common.exception.EntityNotFoundException;
+import com.financetracker.notifications.dto.NotificationResponse;
 import com.financetracker.notifications.event.NotifyUserRequested;
 import com.financetracker.notifications.model.Notification;
 import com.financetracker.notifications.repository.NotificationRepository;
@@ -28,17 +29,20 @@ import java.util.UUID;
 public class NotificationService {
 
     private final NotificationRepository notifications;
+    private final NotificationStream stream;
 
-    /** Create a notification in the user's in-app feed. */
+    /** Create a notification in the user's in-app feed and push it live to any open stream (ADR-021). */
     @Transactional
     public Notification notify(UUID userId, String type, String title, String body, String deepLink) {
-        return notifications.save(Notification.builder()
+        Notification saved = notifications.save(Notification.builder()
             .userId(userId)
             .type(type)
             .title(title)
             .body(body)
             .deepLink(deepLink)
             .build());
+        stream.send(userId, NotificationResponse.from(saved));
+        return saved;
     }
 
     /** Bus bridge: any feature can publish a {@link NotifyUserRequested} instead of depending on this service. */

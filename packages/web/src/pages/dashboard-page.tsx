@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import type { Overview, OverviewCategory } from '@finance-tracker/shared';
 import { useGetOverviewQuery } from '@/store/api/overview-api';
 import { useGetTransactionsSummaryQuery } from '@/store/api/transaction-api';
@@ -7,11 +7,73 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui/stat-card';
-import { TrendingUp, TrendingDown, Wallet, Upload, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import {
+  TrendingUp, TrendingDown, Wallet, Upload, ChevronLeft, ChevronRight, AlertTriangle,
+  ArrowLeftRight, PiggyBank, Tags, UtensilsCrossed, Webhook, Users, ChevronRight as ArrowRight,
+} from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { formatCurrency, formatCurrencyFull, CHART_COLORS } from '@/lib/utils';
 import { statusBar, statusText, statusSoft } from '@/lib/budget-status';
+import { useCan, type Permission } from '@/lib/permissions';
 import { cn } from 'cn';
+
+interface HubCard {
+  to: string;
+  label: string;
+  desc: string;
+  icon: typeof Wallet;
+  anyOf: Permission[];
+}
+
+const HUB_CARDS: HubCard[] = [
+  { to: '/transactions', label: 'Transactions', desc: 'Your income and spending', icon: ArrowLeftRight, anyOf: ['TRANSACTION_READ'] },
+  { to: '/budgets', label: 'Budgets', desc: 'Monthly limits per category', icon: PiggyBank, anyOf: ['BUDGETS'] },
+  { to: '/upload', label: 'Import', desc: 'Add from CSV or a receipt', icon: Upload, anyOf: ['CSV_IMPORT', 'RECEIPT_SCAN'] },
+  { to: '/settings/categories', label: 'Categories', desc: 'Organise your spending', icon: Tags, anyOf: ['CATEGORY_READ'] },
+  { to: '/meals', label: 'Meals', desc: 'Call the household to the table', icon: UtensilsCrossed, anyOf: ['MEALS_CALL', 'MEALS_RESPOND'] },
+  { to: '/settings/integrations', label: 'Integrations', desc: 'Webhooks and devices', icon: Webhook, anyOf: ['INTEGRATIONS_MANAGE'] },
+  { to: '/admin/users', label: 'Administration', desc: 'Accounts and settings', icon: Users, anyOf: ['USER_READ'] },
+];
+
+/** The home hub: a card per feature the user has, so the dashboard is a general entry point to everything. */
+function FeatureHub() {
+  const can = useCan();
+  const cards = HUB_CARDS.filter((card) => card.anyOf.some((permission) => can(permission)));
+  if (cards.length === 0) return null;
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {cards.map((card) => (
+        <Link
+          key={card.to}
+          to={card.to}
+          className="group flex items-start gap-3 rounded-[12px] border border-border-default bg-bg-surface p-4 transition-colors hover:border-brand-primary"
+        >
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary-soft text-brand-primary">
+            <card.icon className="size-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-text-default">{card.label}</p>
+            <p className="text-xs text-text-muted">{card.desc}</p>
+          </div>
+          <ArrowRight className="size-4 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  const can = useCan();
+  return (
+    <div className="space-y-8">
+      <section className="space-y-4">
+        <h1 className="page-title">Home</h1>
+        <FeatureHub />
+      </section>
+      {can('DASHBOARD_VIEW') && <FinanceOverview />}
+    </div>
+  );
+}
 
 /** A percentage-change caption vs last month, or undefined when there is nothing to compare to. */
 function deltaLabel(current: number, previous: number): string | undefined {
@@ -20,7 +82,7 @@ function deltaLabel(current: number, previous: number): string | undefined {
   return `${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% vs last month`;
 }
 
-export default function DashboardPage() {
+function FinanceOverview() {
   const navigate = useNavigate();
   const now = new Date();
   const [viewMonth, setViewMonth] = useState({ year: now.getFullYear(), month: now.getMonth() }); // 0-indexed

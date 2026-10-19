@@ -84,6 +84,9 @@ public class SecurityConfig {
             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
             // Inbound webhooks (ADR-023 §3) authenticate by token + HMAC in the handler, not by a JWT.
             .requestMatchers("/api/v1/webhooks/**").permitAll()
+            // The live notification SSE stream (ADR-021) authenticates via a token query param (EventSource
+            // can't send an Authorization header); the controller validates it.
+            .requestMatchers("/api/v1/notifications/stream").permitAll()
 
             // Domain access (ADR-018): each domain's URLs need a permission from the role table.
             .requestMatchers("/api/v1/csv/**").hasAuthority(CSV_IMPORT.name())
