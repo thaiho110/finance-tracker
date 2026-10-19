@@ -48,6 +48,18 @@ public class HouseholdService {
                 .orElseThrow(() -> new IllegalStateException("Membership points at a missing household"))));
     }
 
+    /** The id of the household the user belongs to, or empty if none. For features that address the household. */
+    @Transactional(readOnly = true)
+    public Optional<UUID> householdIdOf(UUID userId) {
+        return members.findByUserId(userId).map(HouseholdMember::getHouseholdId);
+    }
+
+    /** The user ids of every member of a household. */
+    @Transactional(readOnly = true)
+    public List<UUID> memberUserIds(UUID householdId) {
+        return members.findByHouseholdId(householdId).stream().map(HouseholdMember::getUserId).toList();
+    }
+
     /** Create a household and make the caller its first member. */
     @Transactional
     public HouseholdView create(UUID userId, String name) {
