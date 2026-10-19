@@ -23,6 +23,10 @@ import AdminAuditPage from '@/pages/admin/audit-page';
 import AdminCategoriesPage from '@/pages/admin/categories-page';
 import AdminSettingsPage from '@/pages/admin/settings-page';
 import CategoriesSettingsPage from '@/pages/settings/categories-page';
+import AssistantPage from '@/pages/assistant-page';
+import MealsPage from '@/pages/meals-page';
+import IntegrationsPage from '@/pages/settings/integrations-page';
+import ModulesPage from '@/pages/settings/modules-page';
 import { Toaster } from '@/components/ui/sonner';
 
 function AuthCheck({ children }: { children: React.ReactNode }) {
@@ -104,6 +108,13 @@ export default function App() {
             {/* The import page checks CSV_IMPORT and RECEIPT_SCAN per tab */}
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/settings/categories" element={<RequirePermission permission="CATEGORY_READ"><CategoriesSettingsPage /></RequirePermission>} />
+
+            {/* Re-scope modules (ADR-020 §4, 023, 024, 025) */}
+            <Route path="/assistant" element={<RequirePermission permission="ASSISTANT_USE"><AssistantPage /></RequirePermission>} />
+            <Route path="/meals" element={<RequirePermission permission="MEALS_RESPOND"><MealsPage /></RequirePermission>} />
+            <Route path="/settings/integrations" element={<RequirePermission permission="INTEGRATIONS_MANAGE"><IntegrationsPage /></RequirePermission>} />
+            {/* Modules settings is always available — it's where a user turns a module back on. */}
+            <Route path="/settings/modules" element={<ModulesPage />} />
 
             {/* Administration (ADR-018) */}
             <Route path="/admin/users" element={<RequirePermission permission="USER_READ"><AdminUsersPage /></RequirePermission>} />
