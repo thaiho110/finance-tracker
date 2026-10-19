@@ -31,6 +31,7 @@ import static com.financetracker.access.model.Permission.CATEGORY_WRITE;
 import static com.financetracker.access.model.Permission.CSV_IMPORT;
 import static com.financetracker.access.model.Permission.DASHBOARD_VIEW;
 import static com.financetracker.access.model.Permission.FEATURE_MANAGE;
+import static com.financetracker.access.model.Permission.INTEGRATIONS_MANAGE;
 import static com.financetracker.access.model.Permission.MEALS_CALL;
 import static com.financetracker.access.model.Permission.MEALS_RESPOND;
 import static com.financetracker.access.model.Permission.RECEIPT_SCAN;
@@ -80,6 +81,8 @@ public class SecurityConfig {
             .requestMatchers("/error").permitAll()
             .requestMatchers("/actuator/health", "/actuator/info").permitAll()
             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+            // Inbound webhooks (ADR-023 §3) authenticate by token + HMAC in the handler, not by a JWT.
+            .requestMatchers("/api/v1/webhooks/**").permitAll()
 
             // Domain access (ADR-018): each domain's URLs need a permission from the role table.
             .requestMatchers("/api/v1/csv/**").hasAuthority(CSV_IMPORT.name())
@@ -97,6 +100,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/api/v1/meals/calls/*/respond").hasAuthority(MEALS_RESPOND.name())
             .requestMatchers(HttpMethod.POST, "/api/v1/meals/calls").hasAuthority(MEALS_CALL.name())
             .requestMatchers(HttpMethod.GET, "/api/v1/meals/**").hasAnyAuthority(MEALS_CALL.name(), MEALS_RESPOND.name())
+            .requestMatchers("/api/v1/integrations/**").hasAuthority(INTEGRATIONS_MANAGE.name())
 
             // Administration
             .requestMatchers("/api/v1/admin/users/*/features/**").hasAuthority(FEATURE_MANAGE.name())
