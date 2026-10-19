@@ -63,6 +63,8 @@ dependencies {
 
     // Rate Limiting — Token Bucket (Bucket4j)
     implementation("com.bucket4j:bucket4j-core:8.10.1")
+    // AI Assistant — official Anthropic Java SDK (ADR-024); only used when ANTHROPIC_API_KEY is set
+    implementation("com.anthropic:anthropic-java:2.34.0")
     implementation("com.github.ben-manes.caffeine:caffeine")
 
     // Lombok
