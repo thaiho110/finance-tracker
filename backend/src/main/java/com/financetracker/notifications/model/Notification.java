@@ -23,10 +23,11 @@ import java.util.UUID;
  * notification whose {@code type} routes to push (see {@code NotificationRouting}) is also sent to the
  * user's devices and recorded with {@code pushed = true}.
  *
- * <p>ADR-021's richer {@code data JSONB} / {@code channels[]} payload is reduced here to a {@code deepLink}
- * (the client route to open) and a {@code pushed} flag. The arbitrary-payload column is deferred until a
- * producer needs it (e.g. meal-call quick-reply actions, ADR-025), when its JSON mapping is chosen
- * deliberately rather than guessed against the Jackson 2/3 classpath.
+ * <p>Delivery is in-app only — the feed below. ADR-021's richer {@code data JSONB} / {@code channels[]}
+ * payload is reduced here to a {@code deepLink} (the client route to open when tapped). The
+ * arbitrary-payload column is deferred until a producer needs it (e.g. meal-call quick-reply actions,
+ * ADR-025), when its JSON mapping is chosen deliberately rather than guessed against the Jackson 2/3
+ * classpath.
  */
 @Entity
 @Table(name = "notifications")
@@ -58,10 +59,6 @@ public class Notification {
     /** A client route to open when the notification is tapped, or null. */
     @Column(name = "deep_link", length = 500)
     private String deepLink;
-
-    /** Whether this notification was also delivered to push, in addition to the in-app feed. */
-    @Column(nullable = false)
-    private boolean pushed;
 
     /** When the user marked it read, or null while unread. */
     @Column(name = "read_at")

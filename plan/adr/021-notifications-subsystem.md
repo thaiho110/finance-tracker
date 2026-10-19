@@ -1,6 +1,6 @@
-# ADR-021: Notifications Subsystem (In-App Feed + Push)
+# ADR-021: Notifications Subsystem (In-App Feed)
 
-**Status:** Proposed
+**Status:** Accepted (in-app only; push deferred — 2026-10-19)
 **Date:** 2026-10-19
 **Deciders:** Thai Ho
 **Amends:** [ADR-010](./010-domain-module-packages.md) (adds a new platform package `notifications`)
@@ -40,22 +40,18 @@ client uses to deep-link / render actions), the `channels` it was routed to, `re
   is `PUSH + IN_APP` while an assistant summary is `IN_APP` only. Routing lives with the producing feature's type
   definition, not scattered at call sites.
 
-### 3. Transports, in order of delivery
+### 3. Delivery: in-app only
 
-| Transport | Clients | Status in this ADR |
-|---|---|---|
-| In-app feed (`GET /api/v1/notifications`) | web, desktop, mobile | Ships |
-| **Web Push (VAPID)** | web, Electron desktop | Ships |
-| FCM | react-native Android | Tracked follow-up **within this ADR**, not a new ADR |
-| APNs | react-native iOS | Tracked follow-up **within this ADR** |
-
-Web Push covers web and desktop immediately; FCM/APNs are additive transports behind the same `push_tokens` table
-and the same publish call, so no feature changes when they land.
-
-### 4. Device registration
-
-Clients register a push token after login and refresh it on change. One user has many devices; a token is unique.
-Logout removes the token. Delivery failures (expired/invalid token) prune the row.
+- **In-app feed** (`GET /api/v1/notifications`): every notification is persisted and shown in the app with a
+  read/unread state and an unread badge. Clients see new notifications by refetching the feed / polling the
+  unread count while open. This is the whole of delivery for now.
+- **Push is deferred** (decision 2026-10-19). Browser/OS push (Web Push / FCM / APNs) and device-token
+  registration are intentionally **not** built: they add real crypto, a schema for subscriptions, client
+  service workers and platform credentials, for little gain while the app is the surface the user is already
+  in. The subsystem is designed so a push transport can be added later as an adapter (a `PushSender` port)
+  without changing producers — but no device tokens exist today.
+- Live, real-time in-app delivery (SSE/WebSocket pop-ups rather than polling) is a possible later enhancement,
+  not built here.
 
 ## API
 
@@ -65,40 +61,28 @@ Logout removes the token. Delivery failures (expired/invalid token) prune the ro
 | `POST` | `/api/v1/notifications/{id}/read` | Mark one read. |
 | `POST` | `/api/v1/notifications/read-all` | Mark all read. |
 | `GET` | `/api/v1/notifications/unread-count` | Badge count. |
-| `POST` | `/api/v1/push/tokens` | `{ client, token }` — register / refresh this device. |
-| `DELETE` | `/api/v1/push/tokens` | `{ token }` — deregister (on logout). |
-| `GET` | `/api/v1/push/vapid-public-key` | Web Push subscription key. |
 
 All endpoints are user-scoped; no new module permission (notifications are always on). The feed is read-only to
-clients — only features (server-side) create notifications.
+clients — only features (server-side) create notifications. The `/api/v1/push/*` endpoints are deferred with push.
 
 ## Schema
+
+As built (in-app only). ADR's richer `data JSONB` / `channels[]` are reduced to `deep_link`; the `push_tokens`
+table is deferred with push.
 
 ```sql
 -- V13__notifications.sql
 notifications (
   id            UUID PRIMARY KEY,
-  user_id       UUID NOT NULL REFERENCES users(id),
-  type          VARCHAR(50) NOT NULL,     -- 'meal.call', 'assistant.summary', 'webhook.triggered', ...
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type          VARCHAR(50) NOT NULL,     -- 'meal.call', 'assistant.summary', 'budget.over', ...
   title         VARCHAR(200) NOT NULL,
   body          VARCHAR(1000),
-  data          JSONB,                    -- deep-link target, quick actions, producer payload
-  channels      VARCHAR(50)[] NOT NULL,   -- {'IN_APP'}, {'IN_APP','PUSH'}
+  deep_link     VARCHAR(500),             -- client route to open when tapped
   read_at       TIMESTAMP NULL,
   created_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );
 -- index (user_id, created_at DESC), partial index (user_id) WHERE read_at IS NULL
-
-push_tokens (
-  id            UUID PRIMARY KEY,
-  user_id       UUID NOT NULL REFERENCES users(id),
-  client        VARCHAR(40) NOT NULL,     -- ADR-009 X-Client-Id family: web / desktop / mobile
-  transport     VARCHAR(20) NOT NULL,     -- 'WEB_PUSH' | 'FCM' | 'APNS'
-  token         TEXT NOT NULL UNIQUE,
-  created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
-  last_seen_at  TIMESTAMP NOT NULL DEFAULT NOW()
-);
--- index (user_id)
 ```
 
 ## Consequences
