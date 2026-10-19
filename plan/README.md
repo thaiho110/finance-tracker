@@ -756,11 +756,22 @@ Done so far: 14a, most of 14 (as ADR-018), 9, 11, 12, 13, 13b (budgets + monthly
 | 007 | Vite + React + Tailwind + shadcn/ui Frontend | [adr/007-vite-react-frontend.md](./adr/007-vite-react-frontend.md) |
 | 008 | OpenTelemetry + Grafana Observability Stack | [adr/008-observability-stack.md](./adr/008-observability-stack.md) |
 | 009 | Multi-Client API Design (v1, BFF) | [adr/009-multi-client-api.md](./adr/009-multi-client-api.md) |
+| 010 | Domain Module Package Structure | [adr/010-domain-module-packages.md](./adr/010-domain-module-packages.md) |
+| 011 | Frontend Monorepo with Multi-Client Architecture | [adr/011-frontend-monorepo.md](./adr/011-frontend-monorepo.md) |
+| 012 | Web UI Implementation Plan | [adr/012-web-ui-implementation-plan.md](./adr/012-web-ui-implementation-plan.md) |
+| 013 | Refined Web UI Architecture | [adr/013-refined-web-ui-architecture.md](./adr/013-refined-web-ui-architecture.md) |
 | 014 | Local Tesseract OCR + Rule-Based Receipt Parsing | [adr/014-local-tesseract-ocr.md](./adr/014-local-tesseract-ocr.md) |
-| 015 | User-Owned Categories and Categorization Rules (proposed) | [adr/015-user-categories-and-rules.md](./adr/015-user-categories-and-rules.md) |
-| 016 | Admin Area (proposed) | [adr/016-admin-area.md](./adr/016-admin-area.md) |
-| 017 | nginx Reverse Proxy and Local URLs (proposed) | [adr/017-nginx-reverse-proxy.md](./adr/017-nginx-reverse-proxy.md) |
+| 015 | User-Owned Categories and Categorization Rules | [adr/015-user-categories-and-rules.md](./adr/015-user-categories-and-rules.md) |
+| 016 | Admin Area | [adr/016-admin-area.md](./adr/016-admin-area.md) |
+| 017 | nginx Reverse Proxy and Local URLs (proposed — strictly last) | [adr/017-nginx-reverse-proxy.md](./adr/017-nginx-reverse-proxy.md) |
 | 018 | Role Table, Permissions per Domain, Per-User Features | [adr/018-roles-permissions-features.md](./adr/018-roles-permissions-features.md) |
+| 019 | Monthly Budgets and the Monthly Overview | [adr/019-budgets-monthly-overview.md](./adr/019-budgets-monthly-overview.md) |
+| 020 | Feature Modules, Monthly Statements, and Tabs (proposed) | [adr/020-feature-modules-statements-tabs.md](./adr/020-feature-modules-statements-tabs.md) |
+| 021 | Notifications Subsystem (In-App Feed + Push) (proposed) | [adr/021-notifications-subsystem.md](./adr/021-notifications-subsystem.md) |
+| 022 | Household (Addressing, Not Shared Ownership) (proposed) | [adr/022-household.md](./adr/022-household.md) |
+| 023 | Integrations — Internal Event Bus and External Webhooks (proposed) | [adr/023-integrations-webhooks.md](./adr/023-integrations-webhooks.md) |
+| 024 | AI Assistant (Provider Adapter, Tool Registry, Confirm-Cards) (proposed) | [adr/024-ai-assistant.md](./adr/024-ai-assistant.md) |
+| 025 | Meals — the Household Meal Call (proposed) | [adr/025-meals.md](./adr/025-meals.md) |
 
 ---
 
