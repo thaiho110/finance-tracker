@@ -1,6 +1,7 @@
 # ADR-022: Household (Addressing, Not Shared Ownership)
 
-**Status:** Proposed
+**Status:** Accepted (backend implemented 2026-10-19; `contacts.linked_user_id` deferred until ADR-020's
+`contacts` table exists; `household_members` uses a surrogate id + `UNIQUE(user_id)` rather than a composite PK)
 **Date:** 2026-10-19
 **Deciders:** Thai Ho
 **Amends:** [ADR-020](./020-feature-modules-statements-tabs.md) (reverses its "multi-tenancy/household rejected"
