@@ -2,11 +2,15 @@ package com.financetracker.access.service;
 
 import com.financetracker.access.config.AccessProperties;
 import com.financetracker.access.model.FeatureState;
+import com.financetracker.access.model.Module;
+import com.financetracker.access.model.ModuleState;
 import com.financetracker.access.model.Permission;
 import com.financetracker.access.model.Role;
 import com.financetracker.access.model.UserFeatureOverride;
+import com.financetracker.access.model.UserModulePreference;
 import com.financetracker.access.repository.RoleRepository;
 import com.financetracker.access.repository.UserFeatureOverrideRepository;
+import com.financetracker.access.repository.UserModulePreferenceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +38,7 @@ class AccessServiceTest {
 
     @Mock private RoleRepository roleRepository;
     @Mock private UserFeatureOverrideRepository overrides;
+    @Mock private UserModulePreferenceRepository modulePreferences;
 
     private final AccessProperties properties = new AccessProperties();
     private AccessService accessService;
@@ -44,9 +49,10 @@ class AccessServiceTest {
 
     @BeforeEach
     void setUp() {
-        accessService = new AccessService(roleRepository, overrides, properties);
+        accessService = new AccessService(roleRepository, overrides, modulePreferences, properties);
         lenient().when(roleRepository.findById(Role.USER)).thenReturn(Optional.of(userRole));
         lenient().when(overrides.findByUserId(userId)).thenReturn(List.of());
+        lenient().when(modulePreferences.findByUserId(userId)).thenReturn(List.of());
     }
 
     @Test
@@ -94,7 +100,8 @@ class AccessServiceTest {
         List<FeatureState> features = accessService.features(userId, Role.USER);
 
         assertThat(features).extracting(FeatureState::permission)
-            .containsExactly(Permission.DASHBOARD_VIEW, Permission.CSV_IMPORT, Permission.RECEIPT_SCAN, Permission.BUDGETS);
+            .containsExactly(Permission.DASHBOARD_VIEW, Permission.CSV_IMPORT, Permission.RECEIPT_SCAN, Permission.BUDGETS,
+                Permission.ASSISTANT_USE, Permission.INTEGRATIONS_MANAGE, Permission.MEALS_CALL, Permission.MEALS_RESPOND);
         assertThat(features.get(0)).isEqualTo(new FeatureState(Permission.DASHBOARD_VIEW, false, null, false));
         assertThat(features.get(1)).isEqualTo(new FeatureState(Permission.CSV_IMPORT, true, false, false));
         assertThat(features.get(2)).isEqualTo(new FeatureState(Permission.RECEIPT_SCAN, true, null, true));
@@ -141,5 +148,60 @@ class AccessServiceTest {
 
         assertThat(accessService.initialRoleFor("owner@example.com")).isEqualTo(Role.SUPER_ADMIN);
         assertThat(accessService.initialRoleFor("someone@example.com")).isEqualTo(Role.USER);
+    }
+
+    @Test
+    @DisplayName("Turning a module off subtracts its permissions (ADR-020 §4)")
+    void disabledModuleSubtractsPermissions() {
+        when(modulePreferences.findByUserId(userId)).thenReturn(List.of(
+            new UserModulePreference(userId, Module.SPENDING, false)));
+
+        Set<Permission> permissions = accessService.effectivePermissions(userId, Role.USER);
+
+        // SPENDING covers all of this role's finance permissions, so none remain.
+        assertThat(permissions).doesNotContain(
+            Permission.TRANSACTION_READ, Permission.TRANSACTION_WRITE, Permission.CSV_IMPORT, Permission.RECEIPT_SCAN);
+    }
+
+    @Test
+    @DisplayName("A disabled module never grants a permission the role didn't give")
+    void disabledModuleOnlyNarrows() {
+        // ASSISTANT is off, but the role never granted ASSISTANT_USE, so nothing changes and nothing is granted.
+        when(modulePreferences.findByUserId(userId)).thenReturn(List.of(
+            new UserModulePreference(userId, Module.ASSISTANT, false)));
+
+        Set<Permission> permissions = accessService.effectivePermissions(userId, Role.USER);
+
+        assertThat(permissions)
+            .doesNotContain(Permission.ASSISTANT_USE)
+            .contains(Permission.TRANSACTION_READ, Permission.CSV_IMPORT);
+    }
+
+    @Test
+    @DisplayName("Module list marks available by role and enabled by the user's choice")
+    void listsModuleStates() {
+        when(modulePreferences.findByUserId(userId)).thenReturn(List.of(
+            new UserModulePreference(userId, Module.MEALS, false)));
+
+        List<ModuleState> modules = accessService.modules(userId, Role.USER);
+
+        // This test role grants only finance permissions, so SPENDING is available; the rest are not.
+        assertThat(modules).contains(
+            new ModuleState("SPENDING", true, true),
+            new ModuleState("ASSISTANT", true, false),
+            new ModuleState("MEALS", false, false));
+    }
+
+    @Test
+    @DisplayName("At least one available module must stay on")
+    void rejectsTurningOffLastModule() {
+        // Only SPENDING is available for this role; simulate the post-save state as SPENDING disabled.
+        when(modulePreferences.findByUserIdAndModule(userId, Module.SPENDING)).thenReturn(Optional.empty());
+        when(modulePreferences.findByUserId(userId)).thenReturn(List.of(
+            new UserModulePreference(userId, Module.SPENDING, false)));
+
+        assertThatThrownBy(() -> accessService.setModule(userId, Role.USER, Module.SPENDING, false))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("At least one module");
     }
 }

@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +23,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import static com.financetracker.access.model.Permission.ASSISTANT_USE;
 import static com.financetracker.access.model.Permission.AUDIT_READ;
 import static com.financetracker.access.model.Permission.BUDGETS;
 import static com.financetracker.access.model.Permission.CATEGORY_ADMIN;
@@ -30,6 +32,9 @@ import static com.financetracker.access.model.Permission.CATEGORY_WRITE;
 import static com.financetracker.access.model.Permission.CSV_IMPORT;
 import static com.financetracker.access.model.Permission.DASHBOARD_VIEW;
 import static com.financetracker.access.model.Permission.FEATURE_MANAGE;
+import static com.financetracker.access.model.Permission.INTEGRATIONS_MANAGE;
+import static com.financetracker.access.model.Permission.MEALS_CALL;
+import static com.financetracker.access.model.Permission.MEALS_RESPOND;
 import static com.financetracker.access.model.Permission.RECEIPT_SCAN;
 import static com.financetracker.access.model.Permission.ROLE_MANAGE;
 import static com.financetracker.access.model.Permission.TRANSACTION_READ;
@@ -54,50 +59,7 @@ public class SecurityConfig {
         return http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/me").authenticated()
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                // Spring Boot forwards errors (including 403 from the rules below) to /error; if /error itself
-                // required a login, every "forbidden" would reach the client as 401 and look like an expired session.
-                .requestMatchers("/error").permitAll()
-                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-
-                // Domain access (ADR-018): each domain's URLs need a permission from the role table.
-                // Rules are checked top to bottom, so specific paths come before broader ones.
-                .requestMatchers("/api/v1/csv/**").hasAuthority(CSV_IMPORT.name())
-                .requestMatchers("/api/v1/ocr/**").hasAuthority(RECEIPT_SCAN.name())
-                .requestMatchers(HttpMethod.GET, "/api/v1/transactions/summary").hasAuthority(DASHBOARD_VIEW.name())
-                .requestMatchers(HttpMethod.GET, "/api/v1/transactions/**").hasAuthority(TRANSACTION_READ.name())
-                .requestMatchers("/api/v1/transactions/**").hasAuthority(TRANSACTION_WRITE.name())
-                .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").hasAuthority(CATEGORY_READ.name())
-                .requestMatchers("/api/v1/categories/**").hasAuthority(CATEGORY_WRITE.name())
-                .requestMatchers("/api/v1/overview/**").hasAuthority(DASHBOARD_VIEW.name())
-                .requestMatchers("/api/v1/budgets/**").hasAuthority(BUDGETS.name())
-
-                // Administration
-                .requestMatchers("/api/v1/admin/users/*/features/**").hasAuthority(FEATURE_MANAGE.name())
-                .requestMatchers(HttpMethod.PUT, "/api/v1/admin/users/*/role").hasAuthority(ROLE_MANAGE.name())
-                .requestMatchers(HttpMethod.PUT, "/api/v1/admin/users/*/status").hasAuthority(USER_SUSPEND.name())
-                .requestMatchers(HttpMethod.POST, "/api/v1/admin/users").hasAuthority(USER_CREATE.name())
-                .requestMatchers(HttpMethod.GET, "/api/v1/admin/users/**", "/api/v1/admin/roles/**", "/api/v1/admin/permissions")
-                    .hasAuthority(USER_READ.name())
-                .requestMatchers("/api/v1/admin/roles/**").hasAuthority(ROLE_MANAGE.name())
-                .requestMatchers(HttpMethod.GET, "/api/v1/admin/audit/**").hasAuthority(AUDIT_READ.name())
-                .requestMatchers("/api/v1/admin/categories/**").hasAuthority(CATEGORY_ADMIN.name())
-                // Registration mode (ADR-016): read with USER_READ, change with ROLE_MANAGE; invites with USER_CREATE.
-                .requestMatchers(HttpMethod.GET, "/api/v1/admin/registration").hasAuthority(USER_READ.name())
-                .requestMatchers("/api/v1/admin/registration").hasAuthority(ROLE_MANAGE.name())
-                .requestMatchers(HttpMethod.GET, "/api/v1/admin/invites").hasAuthority(USER_READ.name())
-                .requestMatchers("/api/v1/admin/invites/**").hasAuthority(USER_CREATE.name())
-                // Device API keys (ADR-016): read with USER_READ, create and revoke with USER_CREATE.
-                .requestMatchers(HttpMethod.GET, "/api/v1/admin/device-keys").hasAuthority(USER_READ.name())
-                .requestMatchers("/api/v1/admin/device-keys/**").hasAuthority(USER_CREATE.name())
-                .requestMatchers(HttpMethod.POST, "/api/v1/admin/device-keys").hasAuthority(USER_CREATE.name())
-                .requestMatchers("/api/v1/admin/**").denyAll()
-
-                .anyRequest().authenticated()
-            )
+            .authorizeHttpRequests(this::authorize)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             // Missing/expired token → 401 (not Spring's default 403) so clients know to refresh the token
             .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
@@ -108,6 +70,65 @@ public class SecurityConfig {
             .addFilterAfter(deviceApiKeyAuthFilter, JwtAuthenticationFilter.class)
             .addFilterAfter(rateLimitingFilter, DeviceApiKeyAuthenticationFilter.class)
             .build();
+    }
+
+    /** URL authorization rules (ADR-018), checked top to bottom, so specific paths come before broader ones. */
+    private void authorize(AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        auth
+            .requestMatchers("/api/v1/auth/me").authenticated()
+            .requestMatchers("/api/v1/auth/**").permitAll()
+            // Spring Boot forwards errors (including 403 from the rules below) to /error; if /error itself
+            // required a login, every "forbidden" would reach the client as 401 and look like an expired session.
+            .requestMatchers("/error").permitAll()
+            .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+            .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+            // Inbound webhooks (ADR-023 §3) authenticate by token + HMAC in the handler, not by a JWT.
+            .requestMatchers("/api/v1/webhooks/**").permitAll()
+            // The live notification SSE stream (ADR-021) authenticates via a token query param (EventSource
+            // can't send an Authorization header); the controller validates it.
+            .requestMatchers("/api/v1/notifications/stream").permitAll()
+
+            // Domain access (ADR-018): each domain's URLs need a permission from the role table.
+            .requestMatchers("/api/v1/csv/**").hasAuthority(CSV_IMPORT.name())
+            .requestMatchers("/api/v1/ocr/**").hasAuthority(RECEIPT_SCAN.name())
+            .requestMatchers(HttpMethod.GET, "/api/v1/transactions/summary").hasAuthority(DASHBOARD_VIEW.name())
+            .requestMatchers(HttpMethod.GET, "/api/v1/transactions/**").hasAuthority(TRANSACTION_READ.name())
+            .requestMatchers("/api/v1/transactions/**").hasAuthority(TRANSACTION_WRITE.name())
+            .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").hasAuthority(CATEGORY_READ.name())
+            .requestMatchers("/api/v1/categories/**").hasAuthority(CATEGORY_WRITE.name())
+            .requestMatchers("/api/v1/overview/**").hasAuthority(DASHBOARD_VIEW.name())
+            .requestMatchers("/api/v1/budgets/**").hasAuthority(BUDGETS.name())
+
+            // Meals (ADR-025): call with MEALS_CALL, respond with MEALS_RESPOND, read with either. The MEALS
+            // module gates these permissions, so turning the module off removes access.
+            .requestMatchers(HttpMethod.POST, "/api/v1/meals/calls/*/respond").hasAuthority(MEALS_RESPOND.name())
+            .requestMatchers(HttpMethod.POST, "/api/v1/meals/calls").hasAuthority(MEALS_CALL.name())
+            .requestMatchers(HttpMethod.GET, "/api/v1/meals/**").hasAnyAuthority(MEALS_CALL.name(), MEALS_RESPOND.name())
+            .requestMatchers("/api/v1/integrations/**").hasAuthority(INTEGRATIONS_MANAGE.name())
+            .requestMatchers("/api/v1/assistant/**").hasAuthority(ASSISTANT_USE.name())
+
+            // Administration
+            .requestMatchers("/api/v1/admin/users/*/features/**").hasAuthority(FEATURE_MANAGE.name())
+            .requestMatchers(HttpMethod.PUT, "/api/v1/admin/users/*/role").hasAuthority(ROLE_MANAGE.name())
+            .requestMatchers(HttpMethod.PUT, "/api/v1/admin/users/*/status").hasAuthority(USER_SUSPEND.name())
+            .requestMatchers(HttpMethod.POST, "/api/v1/admin/users").hasAuthority(USER_CREATE.name())
+            .requestMatchers(HttpMethod.GET, "/api/v1/admin/users/**", "/api/v1/admin/roles/**", "/api/v1/admin/permissions")
+                .hasAuthority(USER_READ.name())
+            .requestMatchers("/api/v1/admin/roles/**").hasAuthority(ROLE_MANAGE.name())
+            .requestMatchers(HttpMethod.GET, "/api/v1/admin/audit/**").hasAuthority(AUDIT_READ.name())
+            .requestMatchers("/api/v1/admin/categories/**").hasAuthority(CATEGORY_ADMIN.name())
+            // Registration mode (ADR-016): read with USER_READ, change with ROLE_MANAGE; invites with USER_CREATE.
+            .requestMatchers(HttpMethod.GET, "/api/v1/admin/registration").hasAuthority(USER_READ.name())
+            .requestMatchers("/api/v1/admin/registration").hasAuthority(ROLE_MANAGE.name())
+            .requestMatchers(HttpMethod.GET, "/api/v1/admin/invites").hasAuthority(USER_READ.name())
+            .requestMatchers("/api/v1/admin/invites/**").hasAuthority(USER_CREATE.name())
+            // Device API keys (ADR-016): read with USER_READ, create and revoke with USER_CREATE.
+            .requestMatchers(HttpMethod.GET, "/api/v1/admin/device-keys").hasAuthority(USER_READ.name())
+            .requestMatchers("/api/v1/admin/device-keys/**").hasAuthority(USER_CREATE.name())
+            .requestMatchers(HttpMethod.POST, "/api/v1/admin/device-keys").hasAuthority(USER_CREATE.name())
+            .requestMatchers("/api/v1/admin/**").denyAll()
+
+            .anyRequest().authenticated();
     }
 
     /** CORS for the web, desktop and mobile clients; credentials are allowed so the bearer token can be sent. */

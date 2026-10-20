@@ -15,6 +15,9 @@ import {
   Tags,
   FolderCog,
   Settings,
+  UtensilsCrossed,
+  Webhook,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { logout as logoutAction } from '@/store/auth-slice';
@@ -22,6 +25,9 @@ import { tokenStorage } from '@/lib/token-storage';
 import type { RootState } from '@/store';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { NotificationBell } from '@/components/notifications/notification-bell';
+import { AssistantWidget } from '@/components/assistant/assistant-widget';
+import { useNotificationStream } from '@/hooks/use-notification-stream';
 import { Peek } from '@doan-labs/peek';
 import { cn } from 'cn';
 import { useCan, type Permission } from '@/lib/permissions';
@@ -30,8 +36,9 @@ interface NavItem {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
-  /** Shown when the user has any of these permissions (ADR-018). */
+  /** Shown when the user has any of these permissions (ADR-018), or always when `always`. */
   anyOf: Permission[];
+  always?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -40,6 +47,9 @@ const navItems: NavItem[] = [
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight, anyOf: ['TRANSACTION_READ'] },
   { to: '/upload', label: 'Import', icon: Upload, anyOf: ['CSV_IMPORT', 'RECEIPT_SCAN'] },
   { to: '/settings/categories', label: 'Categories', icon: Tags, anyOf: ['CATEGORY_READ'] },
+  { to: '/meals', label: 'Meals', icon: UtensilsCrossed, anyOf: ['MEALS_CALL', 'MEALS_RESPOND'] },
+  { to: '/settings/integrations', label: 'Integrations', icon: Webhook, anyOf: ['INTEGRATIONS_MANAGE'] },
+  { to: '/settings/modules', label: 'Modules', icon: SlidersHorizontal, anyOf: [], always: true },
 ];
 
 const adminItems: NavItem[] = [
@@ -62,9 +72,14 @@ const pageTitles: Record<string, string> = {
   '/admin/categories': 'Default categories',
   '/admin/settings': 'Settings',
   '/settings/categories': 'Categories',
+  '/meals': 'Meals',
+  '/settings/integrations': 'Integrations',
+  '/settings/modules': 'Modules',
+  '/notifications': 'Notifications',
 };
 
 export function AppLayout() {
+  useNotificationStream();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
   const dispatch = useDispatch();
@@ -73,7 +88,7 @@ export function AppLayout() {
   const { id, email, permissions } = useSelector((state: RootState) => state.auth);
   const can = useCan();
   // Only fully known permissions decide whether the admin section exists, so regular users never see it flash.
-  const visible = (items: NavItem[]) => items.filter((item) => item.anyOf.some((permission) => can(permission)));
+  const visible = (items: NavItem[]) => items.filter((item) => item.always || item.anyOf.some((permission) => can(permission)));
   const mainNav = visible(navItems);
   const adminNav = permissions === null ? [] : visible(adminItems);
 
@@ -200,6 +215,7 @@ export function AppLayout() {
           </div>
 
           <div className="flex items-center gap-3">
+            <NotificationBell />
             {/* Dark mode toggle */}
             <Button
               variant="ghost"
@@ -253,6 +269,9 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Floating assistant bubble (ADR-024), on every page when the user has the Assistant module */}
+      <AssistantWidget />
     </div>
   );
 }

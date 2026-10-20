@@ -1,6 +1,8 @@
 # ADR-024: AI Assistant (Provider Adapter, Tool Registry, Confirm-Cards)
 
-**Status:** Proposed
+**Status:** Accepted (implemented 2026-10-20: threads/messages + real Anthropic adapter behind the `ChatModel`
+port, defaulting to `claude-opus-5-5`, falling back to a stub when no `ANTHROPIC_API_KEY` is set; tool-calling,
+confirm-cards, streaming and refusal fallbacks remain follow-ups)
 **Date:** 2026-10-19
 **Deciders:** Thai Ho
 **Amends:** [ADR-010](./010-domain-module-packages.md) (adds platform package `ai`, feature module `assistant`),
