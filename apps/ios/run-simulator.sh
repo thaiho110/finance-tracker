@@ -3,6 +3,18 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# simctl and xcodebuild come with the full Xcode app, not the Command Line Tools. If xcode-select
+# points at the latter, use Xcode for this run only (no sudo needed).
+if ! xcrun --find simctl >/dev/null 2>&1; then
+  for xcode in /Applications/Xcode.app /Applications/Xcode-beta.app; do
+    if [ -d "$xcode/Contents/Developer" ]; then
+      export DEVELOPER_DIR="$xcode/Contents/Developer"
+      break
+    fi
+  done
+fi
+xcrun --find simctl >/dev/null 2>&1 || { echo "Xcode not found in /Applications. Install it from the App Store."; exit 1; }
+
 if ! command -v xcodegen >/dev/null; then
   command -v brew >/dev/null || { echo "Install Homebrew first: https://brew.sh"; exit 1; }
   brew install xcodegen
