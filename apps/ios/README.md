@@ -14,7 +14,15 @@ clients (`/api/v1`, JWT with refresh, `X-Client-Id: finance-tracker-mobile`).
 
 Not here yet: CSV import, receipt scan, budgets editing, categories and rules, admin. Those still live in the web app.
 
-## Run it
+## Run it (one command)
+
+```bash
+cd apps/ios && ./run-simulator.sh
+```
+
+It installs XcodeGen if needed, generates the project, builds, and launches the app in an iPhone simulator.
+
+## Run it from Xcode
 
 Needs a Mac with Xcode 15+ (iOS 17 SDK).
 
