@@ -42,9 +42,13 @@ xcodebuild test -project Kept.xcodeproj -scheme Kept \
 
 ### Pointing it at your backend
 
-- Simulator: `http://localhost:8080` works when the backend runs on the same Mac.
-- Real iPhone: use the Mac's LAN address, e.g. `http://192.168.1.20:8080`. The app allows plain HTTP to
-  local-network hosts only (`NSAllowsLocalNetworking`); anything on the internet must be HTTPS.
+The app has no built-in server: on first launch you enter your backend's address and tap **Test connection**
+(it calls `/actuator/health`). It doesn't need to run on the same machine as the phone.
+
+- Deployed backend (the normal case): `https://kept.yourdomain.com`.
+- Development: `http://localhost:8080` in the simulator, or the Mac's LAN address (`http://192.168.1.20:8080`)
+  from a real iPhone. The app allows plain HTTP to local-network hosts only (`NSAllowsLocalNetworking`);
+  anything on the internet must be HTTPS.
 - Running on a real device needs a signing team: set it under Signing & Capabilities after generating the project.
   A free Apple ID works, but the install expires after 7 days.
 

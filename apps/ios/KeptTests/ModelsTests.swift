@@ -43,6 +43,16 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(APIClient.apiURL(for: "  "))
     }
 
+    func testServerAddress() {
+        XCTAssertFalse(ServerAddress.isInsecureRemote("https://kept.example.com"))
+        XCTAssertFalse(ServerAddress.isInsecureRemote("http://192.168.1.20:8080"))
+        XCTAssertFalse(ServerAddress.isInsecureRemote("http://localhost:8080"))
+        XCTAssertFalse(ServerAddress.isInsecureRemote("http://172.20.0.5:8080"))
+        XCTAssertTrue(ServerAddress.isInsecureRemote("http://kept.example.com"))
+        XCTAssertTrue(ServerAddress.isInsecureRemote("http://172.200.0.5"))
+        XCTAssertEqual(APIClient.healthURL(for: "https://kept.example.com/")?.absoluteString, "https://kept.example.com/actuator/health")
+    }
+
     func testMoney() {
         XCTAssertEqual(Money.format(1_240_000), "₫1,240,000")
         XCTAssertEqual(Money.format(-500), "₫500")

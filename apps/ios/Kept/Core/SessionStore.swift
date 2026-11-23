@@ -4,7 +4,7 @@ import Observation
 /// Settings shared by the app and its App Intents (both run in the app's process).
 enum AppConfig {
     static let serverKey = "kept.server"
-    static let defaultServer = "http://localhost:8080"
+    static let defaultServer = ""
 
     static var server: String {
         get { UserDefaults.standard.string(forKey: serverKey) ?? defaultServer }

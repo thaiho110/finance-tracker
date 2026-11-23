@@ -28,7 +28,7 @@ struct SettingsView: View {
                     Text("Locks Kept whenever you leave the app.")
                 }
                 Section {
-                    TextField("http://192.168.1.20:8080", text: $session.server)
+                    TextField("https://kept.example.com", text: $session.server)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)

@@ -42,6 +42,21 @@ actor APIClient {
         return url
     }
 
+    /// `http://host:8080` -> `http://host:8080/actuator/health`
+    static func healthURL(for server: String) -> URL? {
+        apiURL(for: server)?.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("actuator/health")
+    }
+
+    /// True when the server at `server` answers its health endpoint.
+    func checkHealth(server: String) async -> Bool {
+        guard let url = APIClient.healthURL(for: server) else { return false }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+        request.setValue(Self.clientId, forHTTPHeaderField: "X-Client-Id")
+        guard let (_, response) = try? await session.data(for: request) else { return false }
+        return (response as? HTTPURLResponse)?.statusCode == 200
+    }
+
     func setServer(_ server: String) { baseURL = APIClient.apiURL(for: server) }
     func onSessionExpired(_ handler: @escaping @Sendable () -> Void) { sessionExpired = handler }
 
@@ -178,4 +193,17 @@ actor APIClient {
 
     private static let decoder = JSONDecoder()
     private static let encoder = JSONEncoder()
+}
+
+enum ServerAddress {
+    /// Plain http:// to a host that isn't on the local network. iOS blocks these requests, so warn early.
+    static func isInsecureRemote(_ text: String) -> Bool {
+        guard let url = URL(string: text.trimmingCharacters(in: .whitespaces)),
+              url.scheme?.lowercased() == "http", let host = url.host?.lowercased() else { return false }
+        if host == "localhost" || host == "127.0.0.1" || host.hasSuffix(".local") { return false }
+        if host.hasPrefix("192.168.") || host.hasPrefix("10.") { return false }
+        if host.hasPrefix("172."), let second = Int(host.split(separator: ".").dropFirst().first ?? ""),
+           (16 ... 31).contains(second) { return false }
+        return true
+    }
 }
