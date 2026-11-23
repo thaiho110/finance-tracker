@@ -1,0 +1,41 @@
+name: iOS
+
+on:
+  pull_request:
+    paths: ["apps/ios/**", ".github/workflows/ios.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/ios/**", ".github/workflows/ios.yml"]
+
+jobs:
+  build-and-test:
+    name: Build & test (iOS simulator)
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: apps/ios
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        run: xcodegen generate
+
+      - name: Build and test
+        run: |
+          xcodebuild test \
+            -project Kept.xcodeproj \
+            -scheme Kept \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -resultBundlePath build/TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios-test-results
+          path: apps/ios/build/TestResults.xcresult
+          retention-days: 14

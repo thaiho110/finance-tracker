@@ -1,0 +1,51 @@
+name: Kept
+options:
+  bundleIdPrefix: com.financetracker
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Kept:
+    type: application
+    platform: iOS
+    sources:
+      - path: Kept
+    info:
+      path: Kept/Info.plist
+      properties:
+        CFBundleDisplayName: Kept
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # Lets the app reach a backend on the home LAN (http://192.168.x.x:8080) without HTTPS.
+        # Use a real HTTPS URL for anything exposed to the internet.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: Kept connects to your own server on the local network.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.financetracker.kept
+        GENERATE_INFOPLIST_FILE: NO
+  KeptTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: KeptTests
+    dependencies:
+      - target: Kept
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Kept:
+    build:
+      targets:
+        Kept: all
+    test:
+      targets:
+        - KeptTests
