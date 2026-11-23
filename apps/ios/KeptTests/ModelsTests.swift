@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import Kept
 
@@ -49,5 +50,27 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(Money.parse("45,000"), 45000)
         XCTAssertNil(Money.parse("0"))
         XCTAssertNil(Money.parse("abc"))
+        XCTAssertEqual(Money.grouped("45000"), "45,000")
+        XCTAssertEqual(Money.grouped("abc"), "")
+    }
+
+    func testColorHex() {
+        XCTAssertNotNil(Color(hex: "#8B5E3C"))
+        XCTAssertNil(Color(hex: "nope"))
+        XCTAssertNil(Color(hex: nil))
+    }
+
+    func testDayGroupsAreNewestFirst() throws {
+        func make(_ id: String, _ date: String) throws -> Transaction {
+            let json = """
+            {"id":"\(id)","date":"\(date)","rawDescription":"x","cleanMerchant":"x","amount":10,
+             "category":"c","categoryId":"c","categoryKind":"EXPENSE","categoryColor":null,
+             "sourceType":"MANUAL","clientId":null,"isDuplicate":false,"createdAt":null,"receiptItems":[]}
+            """
+            return try JSONDecoder().decode(Transaction.self, from: Data(json.utf8))
+        }
+        let groups = DayGroup.group([try make("1", "2026-11-01"), try make("2", "2026-11-03"), try make("3", "2026-11-03")])
+        XCTAssertEqual(groups.map(\.date), ["2026-11-03", "2026-11-01"])
+        XCTAssertEqual(groups.first?.spent, 20)
     }
 }

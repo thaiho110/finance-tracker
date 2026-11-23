@@ -15,6 +15,13 @@ enum Money {
         return "₫" + (formatter.string(from: NSDecimalNumber(decimal: value)) ?? "\(value)")
     }
 
+    /// Digits grouped as you type: "45000" -> "45,000". Empty when there are no digits.
+    static func grouped(_ text: String) -> String {
+        let digits = text.filter(\.isNumber)
+        guard !digits.isEmpty, let value = Decimal(string: digits) else { return "" }
+        return formatter.string(from: NSDecimalNumber(decimal: value)) ?? digits
+    }
+
     /// VND has no minor unit, so keep only the digits: "45,000", "45.000" and "45000" all mean 45000.
     static func parse(_ text: String) -> Decimal? {
         let digits = text.filter(\.isNumber)
@@ -41,6 +48,14 @@ enum DateText {
     /// The backend's LocalDate format.
     static func wireString(_ date: Date) -> String { wire.string(from: date) }
     static func monthString(_ date: Date) -> String { month.string(from: date) }
+
+    /// "Today", "Yesterday", or "Mon, 24 Nov"; falls back to the raw text.
+    static func dayTitle(_ wireDate: String) -> String {
+        guard let date = wire.date(from: wireDate) else { return wireDate }
+        if Calendar.current.isDateInToday(date) { return "Today" }
+        if Calendar.current.isDateInYesterday(date) { return "Yesterday" }
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+    }
 
     /// "2026-11-24" -> "24 Nov 2026"; falls back to the raw text.
     static func display(_ wireDate: String) -> String {

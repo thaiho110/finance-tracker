@@ -26,6 +26,7 @@ targets:
         # Use a real HTTPS URL for anything exposed to the internet.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        NSFaceIDUsageDescription: Kept uses Face ID to keep your finances private.
         NSLocalNetworkUsageDescription: Kept connects to your own server on the local network.
     settings:
       base:

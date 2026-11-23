@@ -6,9 +6,9 @@ clients (`/api/v1`, JWT with refresh, `X-Client-Id: finance-tracker-mobile`).
 ## What's in it
 
 - Sign in against a server address you type on the login screen (saved on the device).
-- **Overview**: this month's income, spending, net, category totals, top merchants.
-- **Transactions**: paged list, pull to refresh, swipe to delete, add a transaction.
-- **Settings**: change server, sign out.
+- **Overview**: month switcher, spending vs last month, a donut chart by category (Swift Charts), budget progress bars, top merchants.
+- **Transactions**: grouped by day with daily totals, search, category icons, swipe or long-press to delete, add with a big amount field and category grid.
+- **Settings**: Face ID lock, change server, sign out.
 - **Shortcuts / Siri**: an "Add expense to Kept" action (amount, merchant, optional category) for quick capture.
 - Tokens live in the iOS Keychain.
 
