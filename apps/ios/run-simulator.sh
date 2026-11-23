@@ -28,7 +28,15 @@ DEVICE=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/.*\
 echo "Using simulator $DEVICE"
 
 xcrun simctl boot "$DEVICE" 2>/dev/null || true
-open "$(xcode-select -p)/Applications/Simulator.app"
+# Simulator.app moves between Xcode versions, so look for it instead of hard-coding the path.
+XCODE_APP=$(cd "$(xcode-select -p)/../.." && pwd)
+SIM_APP=$(find "$XCODE_APP" -maxdepth 5 -name Simulator.app 2>/dev/null | head -1)
+[ -n "$SIM_APP" ] || SIM_APP=$(mdfind "kMDItemCFBundleIdentifier == 'com.apple.iphonesimulator'" 2>/dev/null | head -1)
+if [ -n "$SIM_APP" ]; then
+  open "$SIM_APP"
+else
+  echo "Couldn't find Simulator.app. Open it from Xcode: Xcode menu > Open Developer Tool > Simulator."
+fi
 
 xcodebuild -project Kept.xcodeproj -scheme Kept -destination "id=$DEVICE" \
   -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
