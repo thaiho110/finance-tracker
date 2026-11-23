@@ -28,7 +28,7 @@ DEVICE=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/.*\
 echo "Using simulator $DEVICE"
 
 xcrun simctl boot "$DEVICE" 2>/dev/null || true
-open -a Simulator
+open "$(xcode-select -p)/Applications/Simulator.app"
 
 xcodebuild -project Kept.xcodeproj -scheme Kept -destination "id=$DEVICE" \
   -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
